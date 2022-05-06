@@ -1,32 +1,35 @@
 #include "deformation_gradient.h"
 
-template<typename T>
-DeformationGradient<T>::DeformationGradient(int targets_num) : targets(targets_num){
+template<typename T, typename S>
+DeformationGradient<T,S>::DeformationGradient(int targets_num) : targets(targets_num){
 }
 
 
-template<typename T>
-void DeformationGradient<T>::add_reference(std::shared_ptr<Mesh<T>>& m){
+
+template<typename T, typename S>
+void DeformationGradient<T, S>::add_reference(Mesh<T>& m)
+{
 	ref = m;
-	size
+	v_size_ = m.verts_size();
+	triangle_size_ = m.face_size();
+	
 }
-
-template<typename T>
- void DeformationGradient<T>::add_target(std::shared_ptr<Mesh<T>>& m){
+template<typename T, typename S>
+ void DeformationGradient<T,S>::add_target(std::shared_ptr<Mesh<T>>& m){
 	 targets.push_back(m);
 }
 
- template<typename T>
- void DeformationGradient<T>::add_targets(std::vector<Mesh>& target_list)
- {
+
+
+ template<typename T, typename S>
+ void DeformationGradient<T, S>::add_targets(std::vector<Mesh<T>>& target_list){
 	 foreach(target_list : mesh) {
-		 
+		 targets.emplace_back(mesh)
 	 }
  }
 
- template<typename T>
- inline void DeformationGradient<T>::compile()
- {
+ template<typename T, typename S>
+ inline void DeformationGradient<T, S>::compile(){
 
 
 

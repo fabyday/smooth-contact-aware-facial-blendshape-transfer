@@ -12,6 +12,9 @@ add_compile_definitions("WIN32")
 add_compile_definitions("_WINDOWS")
 add_compile_definitions("IMGUI_IMPL_OPENGL_LOADER_GLAD")
 
+set(CMAKE_CXX_STANDARD 17)
+
+
 # Libigl
 option(LIBIGL_WITH_COMISO            "Use CoMiso"                   ON)
 option(LIBIGL_WITH_EMBREE            "Use Embree"                   ON)
@@ -24,11 +27,10 @@ option(LIBIGL_WITH_TRIANGLE          "Use Triangle"                 ON)
 option(LIBIGL_WITH_PREDICATES        "Use exact predicates"         ON)
 option(LIBIGL_WITH_XML               "Use XML"                      ON)
 
-
 # library
 include(libigl)
 include(spdlog)
-
+include(yaml-cpp)
 
 #include(zlib)
 #set(ZLIB_ROOT ${zlib_SOURCE_DIR})
@@ -36,7 +38,6 @@ include(spdlog)
 
 #use multi byte compile
 add_definitions(-D_MBCS)
-
 
 add_subdirectory(src)
 # excutable
