@@ -1,4 +1,4 @@
-set(resource_path ${PROJECT_SOURCE_DIR}/example)
+set(resource_path ${PROJECT_SOURCE_DIR}/examples)
 
 
 add_executable(test1 sample_main.cpp)

@@ -3,7 +3,6 @@
 #include "deformation_gradient.h"
 #include <igl/AABB.h>
 
-#define ROWMAT(T) Eigen::Matrix<T, -1,-1, Eigen::RowMajor>
 
 template <typename T>
 class DeformationTransfer {
@@ -11,7 +10,6 @@ class DeformationTransfer {
 * add_deformation_gradient_data->add_marker->add_constraint(option)->compile->solve
 */
 public:
-	
 	DeformationTransfer(){
 		ws_ ws;
 		wi_ = wi;
@@ -35,8 +33,8 @@ public:
 private:
 
 	std::vector<std::tuple<int,int>> marker_index_;
-	std::shared_ptr<DeformationGradient<T, struct DGTriangle4<T>>> source_;
-	std::shared_ptr<DeformationGradient<T, struct DGTriangle4<T>>> target_;
+	DeformationGradient<T, struct DGTriangle4<T>>* source_;
+	DeformationGradient<T, struct DGTriangle4<T>>* target_;
 
 	float ws_;
 	float wi_;
@@ -46,13 +44,15 @@ private:
 	Edge2Faces e2f_;
 	vert2Faces v2f_;
 
+	void process_neighbor();
 
-	ROWMAT(T) produce_smoothness();
-	ROWMAT(T) produce_identity();
-	ROWMAT(T) produce_closest();
+	Sparse produce_smoothness();
+	Sparse produce_identity();
+	Sparse produce_closest();
 
 
 };
 
 
 
+#include "deformation_trasnfer.cpp"

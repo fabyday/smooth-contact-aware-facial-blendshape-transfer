@@ -1,5 +1,16 @@
 #pragma once
 #include <array>
+#include <vector>
+#include <map>
+#include <eigen/Core>
+
+#include <Eigen/Sparse>
+
+template <typename T>
+using Sparse = Eigen::SparseMatrix<T>;
+
+#define ROWMAT(T) Eigen::Matrix<T, -1,-1, Eigen::RowMajor>
+
 template<typename T>
 struct Vertex {
 	T x, y, z;

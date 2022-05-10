@@ -13,21 +13,29 @@ class DGSolver {
 	
 private:
 	bool constraint_flag_;
-public:
-	enum ConstraintType { 
-						VIRTUAL_VERTEX_FOR_TRIANGLE,  // virtual vertex constraint
-						POINT_CONSTRAINT //default constraint marker
-						};
 
+	std::vector<std::tuple<int, int>> marker_idx_;
+	std::vector<int> virtual_traingle_idx_; // [tri1 : [t1 t2 t3], tri2 [t4,t5,t6]]
+
+
+public:
+	
 	template<typename S>
 	void add_deformation_gradient(DeformationGradient<T, S> dg);
-	void add_constraint(ConstraintType s, std::vector<int> t);
+	
 
+	void add_marker_index(std::vector<std::tuple<int, int>>& corr_marker);
+	void add_virtual_triangle_index(std::vector<int>& tri_index);
+	
 	void reset_all();
 	void reset_constraint() {
 		constraint_flag_ = false;
 	}
-	void solve(const Eigen::Matrix<T, -1,-1, Eigen::RowMajor>&  coords);
 
+
+
+	void solve(const Eigen::Matrix<T, -1,-1, Eigen::RowMajor>&  coords);
+	void solve();
 };
 
+#include "dg_solver.cpp"
