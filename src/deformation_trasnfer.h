@@ -1,18 +1,26 @@
 #pragma once
 #include "Primitives.h"
 #include "deformation_gradient.h"
-#include <kdtree.h>
+#include <pcl/impl/point_types.hpp>
+#include <pcl/kdtree/kdtree.h>
+#define WS_DEFAULT 1
+#define WI_DEFAULT 1
+#define WC_DEFAULT {1,2,3}
+
 
 template <typename T>
 class DeformationTransfer {
 /**
 * add_deformation_gradient_data->add_marker->add_constraint(option)->compile->solve
 */
+
+
 public:
 	DeformationTransfer(){
-		ws_ ws;
-		wi_ = wi;
-		wc_ = wc;
+		ws_ = WS_DEFAULT;
+		wi_ = WI_DEFAULT;
+		wc_ = WC_DEFAULT;
+		compile_flag_ = true;
 	}
 
 
@@ -39,8 +47,10 @@ private:
 	float wi_;
 	std::vector<float> wc_;
 
+	bool compile_flag_;
+
 	// pointXYZ float
-	pcl::KdTree<pcl::PointXYZ> src_kdtree;
+	//pcl::KdTree<pcl::PointXYZ> src_kdtree;
 
 
 	Face2Faces f2f_;
@@ -50,13 +60,15 @@ private:
 	void process_neighbor();
 
 	void produce_cloests_point();
-	Sparse produce_smoothness();
-	Sparse produce_identity();
-	Sparse produce_closest();
+	Sparse<T> produce_smoothness();
+	Sparse<T> produce_identity();
+	Sparse<T> produce_closest();
 
+
+	void phase1();
+	void phase2();
 
 };
 
 
-
-#include "deformation_trasnfer.cpp"
+#include "deformation_transfer.cpp"

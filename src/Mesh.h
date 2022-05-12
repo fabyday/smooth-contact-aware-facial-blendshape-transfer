@@ -26,7 +26,8 @@ public:
 	Mesh() {
 
 	}
-	explicit public Mesh(const Mesh& mesh) :V{ mesh.V }, F{ mesh.F }{
+	explicit public Mesh(const Mesh& mesh) :V{ mesh.V }, F{ mesh.F }, v_size_(mesh.v_size_), f_size_(mesh.f_size_), n_size_(mesh.n_size_)
+	, dirty_flag_(mesh.dirty_flag_){
 
 	}
 
@@ -67,7 +68,6 @@ public:
 				int v1 = F.row(i)[0], v2 = F.row(i)[1], v3 = F.row(i)[2];
 				vec3 e1 = V.row(v2) - V.row(v1);
 				vec3 e2 = V.row(v3) - V.row(v1);
-				std::cout << e1.cross(e2) << std::endl;
 				vec3 e3 = e1.cross(e2);
 				e3.normalize();
 				V.row(v_size_ + i) = e3 + V.row(v1);

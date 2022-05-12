@@ -33,7 +33,7 @@ void DeformationTransfer<T>::process_neighbor()
 }
 
 template<typename T>
-void add_sparse(Sparse& A, TriangleDeformationGradient<T>& tdg) {
+void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) mat = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows() / 3);
@@ -41,34 +41,34 @@ void add_sparse(Sparse& A, TriangleDeformationGradient<T>& tdg) {
 	const int tri_num = tdg.tri_num_;
 	for (int ax = 0; ax < 3; ax++) {
 		for (int i = 0; i < 3; i++) {
-			A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
-			A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
-			A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
-			A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) += (invV_adj(i, 2);
+			//A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
+			//A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
+			//A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
+			//A(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) += (invV_adj(i, 2);
 		}
 	}
 	
 }
 template<typename T>
-void sub_sparse(Sparse& A, TriangleDeformationGradient<T>& tdg) {
+void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) mat = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows()/3);
 	const int col_size = static_cast<int>(A.cols() / 3);
-	const int tri_num = tdg.tri_num_;
+	const int tri_num = tdg.tri_nv um_;
 	for (int ax = 0; ax < 3; ax++) {
 		for (int i = 0; i < 3; i++) {
-			A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
+	/*		A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
 			A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) -= (invV_adj(i, 0));
 			A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) -= (invV_adj(i, 1));
-			A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) -= (invV_adj(i, 2);
+			A( row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) -= (invV_adj(i, 2);*/
 		}
 	}
 }
 
 
 template<typename T>
-inline Sparse DeformationTransfer<T>::produce_smoothness()
+inline Sparse<T> DeformationTransfer<T>::produce_smoothness()
 {
 	const int row_size =  f2f_.faceidx_.size();
 	const int col_size =  v2f_.vertidx_.size();
@@ -91,8 +91,7 @@ inline Sparse DeformationTransfer<T>::produce_smoothness()
 }
 
 template<typename T>
-Eigen::SParse DeformationTransfer<T>::produce_identity()
-{
+Sparse<T> DeformationTransfer<T>::produce_identity(){
 	const int row_size = f2f_.faceidx_.size();
 	const int col_size = v2f_.vertidx_.size();
 	Sparse G(3 * (3 * row_size), 3 * col_size);
@@ -112,10 +111,10 @@ Eigen::SParse DeformationTransfer<T>::produce_identity()
 			int axis = 3;
 			for (int a = 0; a < axis; a++) {
 				for (int row = 0; row < 3; row++) {
-					G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(0, 0)) = -(-invV_adj(row, 0) - invV_adj(row, 1) - invV_adj(row, 2));
+				/*	G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(0, 0)) = -(-invV_adj(row, 0) - invV_adj(row, 1) - invV_adj(row, 2));
 					G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(1, 0)) = -(invV_adj(row, 0));
 					G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(2, 0)) = -(invV_adj(row, 1));
-					G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(3, 0)) = -(invV_adj(row, 2);
+					G(3 * row_size * a + i * 3 + row, 3 * col_size * a + invV_idx(3, 0)) = -(invV_adj(row, 2);*/
 				}
 			}
 		}
@@ -128,7 +127,7 @@ Eigen::SParse DeformationTransfer<T>::produce_identity()
 }
 
 template<typename T>
-Eigen::Matrix<T, -1, -1, Eigen::RowMajor> DeformationTransfer<T>::produce_closest()
+Sparse<T> DeformationTransfer<T>::produce_closest()
 {
 	const int row_size = f2f_.faceidx_.size();
 	const int col_size = v2f_.vertidx_.size();
@@ -167,3 +166,43 @@ void DeformationTransfer<T>::process_correspondence()
 }
 
 
+template<typename T>
+void DeformationTransfer<T>::compile()
+{
+	compile_flag_ = false;
+	source_->compile();
+
+
+
+}
+template<typename T>
+void DeformationTransfer<T>::compile(T ws, T wi, std::vector<T>& wc)
+{
+	ws_ = ws;
+	wi_ = wi;
+	wc_ = wc;
+	compile();
+}
+template<typename T>
+void DeformationTransfer<T>::solve()
+{
+	if (compile_flag_)
+		compile();
+
+	phase1();
+	for (int i = 0; i < wc_.size(); i++) {
+		phase1();
+		phase2();
+	}
+}
+
+template<typename T>
+void DeformationTransfer<T>::phase1()
+{
+
+}
+
+template<typename T>
+void DeformationTransfer<T>::phase2()
+{
+}

@@ -92,10 +92,10 @@ main() {
 	std::vector<Mesh<float>> tgt_tgt(tgt_meshes.begin() + 1, tgt_meshes.end());
 	tgt_dg4.add_targets(tgt_tgt);
 	
-	tgt_dg4.compile();
+	
 
-
-	slvr.add_deformation_gradient(src_dg4);
+	slvr.add_deformation_gradient(DGSolver<float>::PURPOSE::SOURCE, src_dg4);
+	slvr.add_deformation_gradient(DGSolver<float>::PURPOSE::TARGET, tgt_dg4);
 
 
 	slvr.add_marker_index(corr_marker);
