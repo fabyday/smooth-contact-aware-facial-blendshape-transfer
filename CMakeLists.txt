@@ -31,6 +31,7 @@ option(LIBIGL_WITH_XML               "Use XML"                      ON)
 include(libigl)
 include(spdlog)
 include(yaml-cpp)
+include(pcl)
 
 #include(zlib)
 #set(ZLIB_ROOT ${zlib_SOURCE_DIR})

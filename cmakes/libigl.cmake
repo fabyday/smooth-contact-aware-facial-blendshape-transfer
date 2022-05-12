@@ -18,3 +18,4 @@ if(NOT libigl_POPULATED)
 endif()
 list(PREPEND CMAKE_MODULE_PATH "${libigl_SOURCE_DIR}/cmake")
 include(${libigl_SOURCE_DIR}/cmake/libigl.cmake)
+set(EIGEN_INCLUDE_DIR "${libigl_SOURCE_DIR}/external/eigen") # for PCL library

@@ -1,8 +1,7 @@
 #pragma once
 #include "Primitives.h"
 #include "deformation_gradient.h"
-#include <igl/AABB.h>
-
+#include <kdtree.h>
 
 template <typename T>
 class DeformationTransfer {
@@ -39,13 +38,18 @@ private:
 	float ws_;
 	float wi_;
 	std::vector<float> wc_;
-	
+
+	// pointXYZ float
+	pcl::KdTree<pcl::PointXYZ> src_kdtree;
+
+
 	Face2Faces f2f_;
 	Edge2Faces e2f_;
 	vert2Faces v2f_;
 
 	void process_neighbor();
 
+	void produce_cloests_point();
 	Sparse produce_smoothness();
 	Sparse produce_identity();
 	Sparse produce_closest();
