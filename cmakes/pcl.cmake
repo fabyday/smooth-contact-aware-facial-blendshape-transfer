@@ -16,4 +16,4 @@
 #    add_subdirectory(${pcl_SOURCE_DIR} ${pcl_BINARY_DIR})
 #endif ()
 #set(PCL_DIR "${pcl_SOURCE_DIR}/PCLConfig.cmake")
-find_package(PCL 1.3 REQUIRED COMPONENTS common io)
+find_package(PCL 1.3 REQUIRED )

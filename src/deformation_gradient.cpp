@@ -24,7 +24,8 @@ template<typename T, typename S>
  template<typename T, typename S>
  void DeformationGradient<T, S>::reserve_all()
  {
-	 deformation_gradients_.reserve(1 + targets_.sizse());
+	 
+	 deformation_gradients_.resize(1 + targets_.sizse());
 	 for (int i = 0; i < deformation_gradients_.size(); i++) {
 		 deformation_gradients_[i].
 	 }
@@ -41,7 +42,7 @@ template<typename T, typename S>
  template<typename T, typename S>
  inline void DeformationGradient<T, S>::compile(){
 
-
+	 deformation_gradients_.resize(1+targets_.size())
 	 calc_normal_vector();
 	 calc_op_g_list();
 	 calc_deformation_gradient();
@@ -91,7 +92,7 @@ template<typename T, typename S>
 	 calc_make_G_mat();
 	 Mesh<T>::RowmatI& fs = ref_->get_face();
 	 ROWMAT(T)& vs = ref_->get_verts();
-	 
+	 deformation_gradients_[0].resize(fs.rows());
 	 
  }
 

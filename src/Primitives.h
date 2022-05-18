@@ -2,6 +2,7 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <utility>
 #include <eigen/Core>
 
 #include <Eigen/Sparse>
@@ -9,7 +10,9 @@
 template <typename T>
 using Sparse = Eigen::SparseMatrix<T>;
 
+
 #define ROWMAT(T) Eigen::Matrix<T, -1,-1, Eigen::RowMajor>
+
 
 template<typename T>
 struct Vertex {
@@ -37,7 +40,7 @@ struct Face2Faces : public mesh_abs_storage {
 	std::vector<std::vector<face_idx>> faceidx_;
 	
 	void resize(int n) {
-		faceidx_.reserve(n);
+		faceidx_.resize(n);
 	}
 }Face2Faces;
 
@@ -61,6 +64,6 @@ struct vert2Faces : public mesh_abs_storage {
 	std::vector<std::vector<face_idx>> vertidx_;
 
 	void resize(int n) {
-		vertidx_.reserve(n);
+		vertidx_.resize(n);
 	}
 }vert2Faces;

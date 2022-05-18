@@ -2,7 +2,9 @@
 #include "Primitives.h"
 #include "deformation_gradient.h"
 #include <pcl/impl/point_types.hpp>
-#include <pcl/kdtree/kdtree.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
+
 #define WS_DEFAULT 1
 #define WI_DEFAULT 1
 #define WC_DEFAULT {1,2,3}
@@ -50,7 +52,7 @@ private:
 	bool compile_flag_;
 
 	// pointXYZ float
-	//pcl::KdTree<pcl::PointXYZ> src_kdtree;
+	//pcl::KdTreeFLANN<pcl::PointXYZ> src_kdtree_;
 
 
 	Face2Faces f2f_;

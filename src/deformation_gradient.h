@@ -38,11 +38,11 @@ struct DGTriangle4 : public DGTriangle3<T>{
 
 template<typename T, int SIZE = 4>
 struct TriangleDeformationGradient {
-	std::array<T, 9> dg_; // v2 - v4 , v3-v1, v4-v1
+	std::array<T, 3*(SIZE-1)> dg_; // v2 - v4 , v3-v1, v4-v1
 	std::array<int, SIZE> ind_; // v1, v2, v3, v4 vertex index
 	int tri_num_;
 	Eigen::Map<ROWMAT(T)>& get_mat() {
-		return Eigen::Map<ROWMAT(T)>(dg_.data());
+		return Eigen::Map<ROWMAT(T)>(dg_.data(),3,3);
 	}
 	Eigen::Map<Eigen::Vector4i>& get_ind() {
 		return Eigen::Map< Eigen::Vector4i>(ind_.data());
@@ -50,9 +50,9 @@ struct TriangleDeformationGradient {
 
 };
 
-template<typename T>
-struct MeshDGAccessor { // iterator.....?
-	std::vector<TriangleDeformationGradient<T>> data;
+template<typename T, typename S>
+struct DeformationGradientCollection { // iterator.....?
+	std::vector<TriangleDeformationGradient<T, S>> data;
 };
 
 
@@ -71,23 +71,26 @@ public :
 	void get_normal_vector();
 	void calc_normal_vector();
 
-	inline const Mesh<T>& get_ref_mesh() {
+	inline Mesh<T>& get_ref_mesh() {
 		return *ref_;
 	}
 
 
-	// inverse V matrix.
-	inline const ROWMAT(T)& get_inv_matrix(int face_idx) {
-		return Eigen::Map<ROWMAT(T)>deformation_gradients_[0][face_idx];
+	// inverse V matrix.(from reference)
+	inline TriangleDeformationGradient<T>& get_inv_matrix(int face_idx) {
+		return deformation_gradients_[0][face_idx];
 	}
 
 	// ref1 -> target(same topology with ref1)
-	inline const ROWMAT(T)& get_deformation_gradient(int to_ref_target_idx, int face_idx) {
+	inline const TriangleDeformationGradient<T>& get_deformation_gradient(int to_ref_target_idx, int face_idx) {
 		if (to_ref_target_idx < 0)
 			throw std::runtime_error("index error. index must be singed.");
 
-		return Eigen::Map<ROWMAT(T)>deformation_gradients_[to_ref_target_idx + 1][face_idx];
+		return deformation_gradients_[to_ref_target_idx + 1][face_idx];
 	}
+
+	inline const int get_v_size() { return v_size_; };
+
 
 private :
 	void calc_op_g_list();
@@ -103,7 +106,7 @@ private :
 	std::vector<TriangleDeformationGradient<T>> ref_op;
 
 	//use MeshDGAccessor, help gradeint access per mesh.
-	std::vector<TriangleDeformationGradient<T>> deformation_gradients_; // [mesh1_grads mesh2_grads ... mesh_n grads]
+	std::vector<DeformationGradientCollection<T, S>> deformation_gradients_; // [mesh1_grads mesh2_grads ... mesh_n grads]
 };
 
 #include "deformation_gradient.cpp"
