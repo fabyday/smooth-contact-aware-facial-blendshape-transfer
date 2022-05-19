@@ -12,7 +12,10 @@ template<typename T>
 class DGSolver {
 	
 public:
-	using DeformationGradient4 = DeformationGradient<T, struct DGTriangle4<T>>;
+	constexpr static int SIZE4=4;
+	constexpr static int SIZE3=3;
+	using DeformationGradient4 = DeformationGradient<T, SIZE4>;
+	using DeformationGradient3 = DeformationGradient<T, SIZE3>;
 	enum PURPOSE{SOURCE=0, TARGET=1};
 	enum GENTRI {AUTO_SELECT=0, TRIANGLE_STRIP};
 private:

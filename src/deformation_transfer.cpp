@@ -43,15 +43,25 @@ void DeformationTransfer<T>::process_neighbor()
 //
 //}
 
-template<typename T>
-void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
+template <typename T>
+void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows() / 3);
 	const int col_size = static_cast<int>(A.cols() / 3);
 	const int tri_num = tdg.tri_num_;
+	//std::cout << "tri num" << tri_num << std::endl;
+	//std::cout << "ind :" << tdg.get_ind().transpose() << std::endl;
 	for (int ax = 0; ax < 3; ax++) {
 		for (int i = 0; i < 3; i++) {
+			//std::cout << ax << std::endl;
+			//std::cout << "("
+			//	<< row_size * ax + tri_num * 3 + i
+			//	<< ","
+			//	<< col_size * ax + tdg.get_ind()(0, 0)
+			//	<< ") / "
+			//	<< "("
+			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
@@ -60,15 +70,24 @@ void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
 	}
 	
 }
-template<typename T>
-void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
+template <typename T>
+void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows() / 3);
 	const int col_size = static_cast<int>(A.cols() / 3);
 	const int tri_num = tdg.tri_num_;
+	//std::cout << "tri num" <<  tri_num<<std::endl; 
 	for (int ax = 0; ax < 3; ax++) {
 		for (int i = 0; i < 3; i++) {
+			//std::cout << ax << std::endl;
+			//std::cout << "(" 
+			//	<< row_size * ax + tri_num * 3 + i 
+			//	<< "," 
+			//	<< col_size * ax + tdg.get_ind()(0, 0) 
+			//	<< ") / " 
+			//	<< "(" 
+			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) -= (invV_adj(i, 0));
 			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) -= (invV_adj(i, 1));
@@ -78,53 +97,85 @@ void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T>& tdg) {
 }
 
 
-template<typename T>
+template <typename T>
 inline Sparse<T> DeformationTransfer<T>::produce_smoothness()
 {
-	const int row_size =  f2f_.faceidx_.size();
-	const int col_size =  v2f_.vertidx_.size();
-	Sparse<T> G(3*row_size, 3*col_size);
-	G.setZero();
-	ROWMAT(int)& face = source_->get_ref_mesh().get_face();
-	//Eigen::MatrixXd&source_->get_ref_mesh().get_verts();
+	Mesh<T>& mesh_ref = source_->get_ref_mesh();
+	ROWMAT(int)& face = mesh_ref.get_face();
+	ROWMAT(T)& verts = mesh_ref.get_verts();
+	
 
-	for (int i = 0; i < f2f_.faceidx_.size(); i++) {
-		TriangleDeformationGradient<T> tdg_i = source_->get_inv_matrix(i); // Triangle i 
+	Face2Faces& f2f = mesh_ref.get_f2f();
+
+	const int row_size = mesh_ref.face_size();
+	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
+
+
+
+	Sparse<T> G(3*(3*row_size), 3*col_size);
+	G.setZero();
+	
+
+	for (int i = 0; i < row_size; i++) {
+		TriangleDeformationGradient<T, SIZE> tdg_i = source_->get_inv_matrix(i); // Triangle i 
 		add_sparse<T>(G, tdg_i);
 		
-		for (auto iter = f2f_.faceidx_[i].begin(); iter != f2f_.faceidx_[i].end(); iter++) {
+		for (auto iter = f2f.faceidx_[i].begin(); iter != f2f.faceidx_[i].end(); iter++) {
 			const int adj_face_idx = *iter;
-			TriangleDeformationGradient<T>& tdg_adj = source_->get_inv_matrix(adj_face_idx);
-			sub_sparse(G, tdg_adj);
+			TriangleDeformationGradient<T, SIZE>& tdg_adj = source_->get_inv_matrix(adj_face_idx);
+			sub_sparse<T>(G, tdg_adj);
 		}
 	}
 	return G;
 }
 
-template<typename T>
+template <typename T>
 Sparse<T> DeformationTransfer<T>::produce_identity(){
+	Mesh<T>& mesh_ref = source_->get_ref_mesh();
+	ROWMAT(int)& face = mesh_ref.get_face();
+	ROWMAT(T)& verts = mesh_ref.get_verts();
+
+
+	Face2Faces& f2f = mesh_ref.get_f2f();
+
+	const int row_size = mesh_ref.face_size();
+	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
+
 	
-	const int row_size = f2f_.faceidx_.size();
-	const int col_size = v2f_.vertidx_.size();
+
 	Sparse<T> G(3 * (3 * row_size), 3 * col_size);
-
-	ROWMAT(int)& face = source_->get_ref_mesh().get_face();
-	int f_size = source_->get_ref_mesh().face_size();
-
-	for (int i = 0; i < f_size; i++) {
-		TriangleDeformationGradient<T>& invV_i = source_->get_inv_matrix(i); // Triangle i 
+	G.setZero();
+	
+	for (int i = 0; i < row_size; i++) {
+		TriangleDeformationGradient<T, SIZE>& invV_i = source_->get_inv_matrix(i); // Triangle i 
 		add_sparse<T>(G, invV_i);
 	}
+	
+	
+	ROWMAT(T) b;
+	b.resize(G.rows(), 1);
+
 	return G;
 }
 
-template<typename T>
+template <typename T>
 Sparse<T> DeformationTransfer<T>::produce_closest()
 {
-	const int row_size = f2f_.faceidx_.size();
-	const int col_size = v2f_.vertidx_.size();
-	Sparse<T> G( 3*(3*row_size), 3*col_size );
 
+	Mesh<T>& mesh_ref = source_->get_ref_mesh();
+	ROWMAT(int)& face = mesh_ref.get_face();
+	ROWMAT(T)& verts = mesh_ref.get_verts();
+	Face2Faces& f2f = mesh_ref.get_f2f();
+
+	const int row_size = mesh_ref.face_size();
+	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
+
+
+	Sparse<T> G(3 * (3 * row_size), 3 * col_size);
+	G.setZero();
+
+
+	//
 	std::vector<std::tuple<int, std::vector<int>>> closest;
 
 
@@ -132,8 +183,8 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
 	cloud->resize(target_->get_v_size());
 	ROWMAT(T)& tgt_v = target_->get_ref_mesh().get_verts();
-	//ROWMAT(T)& tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
-	ROWMAT(T) tgt_vn(2,3);
+	ROWMAT(T)& tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
+	ROWMAT(T) /*tgt_vn*/(2,3);
 
 	for (int i = 0; cloud->size(); i++) {
 		(*cloud)[i].x = tgt_v.row(i)[0];
@@ -144,8 +195,8 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 	src_kdtree_.setInputCloud(cloud);
 
 	ROWMAT(T)& src_v = source_->get_ref_mesh().get_verts();
-	//ROWMAT(T)& src_vn = source_->get_ref_mesh().calc_vertex_normal_vector();
-	ROWMAT(T) src_vn(2,3);
+	ROWMAT(T)& src_vn = source_->get_ref_mesh().calc_vertex_normal_vector();
+	//ROWMAT(T) src_vn(2,3);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr query_cloud(new pcl::PointCloud<pcl::PointXYZ>());
 	cloud->resize(source_->get_v_size());
 	
@@ -159,7 +210,7 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 
 		xyz.x = src_v.row(i)[0]; xyz.y = src_v.row(i)[1]; xyz.z = src_v.row(i)[2];
 		float angle;
-		float max_angle = 90;
+		float max_angle = 90 * M_PI / 180; // to radian
 		if (src_kdtree_.nearestKSearch(xyz , K, knn_idx, squared_distances) > 0) {
 			for (int j = 0; j < K; j++) {
 				angle = std::acos( tgt_vn.row(j).dot(src_vn.row(i)));
@@ -170,29 +221,23 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 		}
 	}
 
-
-
-
-
-	
-
 	return G;
 }
 
-template<typename T>
-void DeformationTransfer<T>::add_deformation_gradient_data(DeformationGradient<T, struct DGTriangle4<T>>& dg_source, DeformationGradient<T, struct DGTriangle4<T>>& dg_target)
+template <typename T>
+void DeformationTransfer<T>::add_deformation_gradient_data(DeformationGradient<T, SIZE>& dg_source, DeformationGradient<T, SIZE>& dg_target)
 {
 	source_ = &dg_source;
 	target_ = &dg_target;
 }
 
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::add_constraint(ROWMAT(T) additional_mat)
 {
 
 }
 
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::process_correspondence()
 {
 	using res_mat = Eigen::Matrix<T, -1, -1, Eigen::RowMajor>;
@@ -205,7 +250,7 @@ void DeformationTransfer<T>::process_correspondence()
 }
 
 
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::compile()
 {
 	compile_flag_ = false;
@@ -213,7 +258,7 @@ void DeformationTransfer<T>::compile()
 	process_correspondence();
 
 }
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::compile(T ws, T wi, std::vector<T>& wc)
 {
 	ws_ = ws;
@@ -221,7 +266,7 @@ void DeformationTransfer<T>::compile(T ws, T wi, std::vector<T>& wc)
 	wc_ = wc;
 	compile();
 }
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::solve()
 {
 	if (compile_flag_)
@@ -234,13 +279,13 @@ void DeformationTransfer<T>::solve()
 	}
 }
 
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::phase1()
 {
 
 }
 
-template<typename T>
+template <typename T>
 void DeformationTransfer<T>::phase2()
 {
 }

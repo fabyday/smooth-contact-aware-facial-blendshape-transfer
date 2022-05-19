@@ -18,6 +18,7 @@ class DeformationTransfer {
 
 
 public:
+	constexpr static int SIZE = 4;
 	DeformationTransfer(){
 		ws_ = WS_DEFAULT;
 		wi_ = WI_DEFAULT;
@@ -27,8 +28,8 @@ public:
 
 
 	//User Input
-	void add_deformation_gradient_data(DeformationGradient<T, struct DGTriangle4<T>>& dg_source, 
-										DeformationGradient<T, struct DGTriangle4<T>>& dg_target);
+	void add_deformation_gradient_data(DeformationGradient<T, SIZE>& dg_source,
+										DeformationGradient<T, SIZE>& dg_target);
 	inline void add_marker(std::vector<std::tuple<int, int>>& marker_index) {
 		marker_index_ = marker_index;
 	}
@@ -42,8 +43,8 @@ public:
 private:
 
 	std::vector<std::tuple<int,int>> marker_index_;
-	DeformationGradient<T, struct DGTriangle4<T>>* source_;
-	DeformationGradient<T, struct DGTriangle4<T>>* target_;
+	DeformationGradient<T, SIZE>* source_;
+	DeformationGradient<T, SIZE>* target_;
 
 	float ws_;
 	float wi_;
@@ -55,9 +56,6 @@ private:
 	//pcl::KdTreeFLANN<pcl::PointXYZ> src_kdtree_;
 
 
-	Face2Faces f2f_;
-	Edge2Faces e2f_;
-	vert2Faces v2f_;
 
 	void process_neighbor();
 

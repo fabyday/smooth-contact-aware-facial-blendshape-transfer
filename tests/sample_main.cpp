@@ -81,7 +81,7 @@ main() {
 	
 	
 
-	DeformationGradient<float, struct DGTriangle4<float>> src_dg4, tgt_dg4; // for deformation transfer
+	DeformationGradient<float, 4> src_dg4, tgt_dg4; // for deformation transfer
 	
 																			// [mesh0_ref | mesh_tgt(1) ... mesh_tgt(n)]
 	src_dg4.add_reference(src_meshes[0]);

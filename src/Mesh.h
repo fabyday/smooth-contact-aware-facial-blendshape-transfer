@@ -55,9 +55,9 @@ public:
 		for (int row_idx = 0; row_idx < face.rows(); row_idx++) {
 
 			int f1 = face.row(row_idx)[0], f2 = face.row(row_idx)[1], f3 = face.row(row_idx)[2];
-			e2f_.edges_[std::make_pair(f1, f2)].push_back(row_idx);
-			e2f_.edges_[std::make_pair(f2, f3)].push_back(row_idx);
-			e2f_.edges_[std::make_pair(f3, f1)].push_back(row_idx);
+			e2f_.edges_[std::minmax(f1, f2)].push_back(row_idx);
+			e2f_.edges_[std::minmax(f2, f3)].push_back(row_idx);
+			e2f_.edges_[std::minmax(f3, f1)].push_back(row_idx);
 			v2f_.vertidx_[f1].push_back(row_idx);
 			v2f_.vertidx_[f2].push_back(row_idx);
 			v2f_.vertidx_[f3].push_back(row_idx);
@@ -71,10 +71,14 @@ public:
 				int fidx = *iter_f;
 				std::copy_if(val.begin(), val.end(),
 					std::back_inserter(f2f_.faceidx_[fidx]),
-					[fidx](int inserted_fidx) {return fidx != inserted_fidx; });
+					[fidx](int inserted_fidx) {	return fidx != inserted_fidx; });
 			}
 		}
 	}
+
+	inline Face2Faces& get_f2f() { return f2f_; }
+	inline Edge2Faces& get_e2f() { return e2f_; }
+	inline vert2Faces& get_v2f() { return v2f_; }
 
 
 	inline ROWMAT(T)& get_verts() {

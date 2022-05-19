@@ -54,6 +54,8 @@ struct Edge2Faces : public mesh_abs_storage {
 	void resize(int n) {
 		;
 	}
+
+
 }Edge2Faces;
 
 
