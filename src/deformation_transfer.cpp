@@ -262,19 +262,21 @@ void DeformationTransfer<T>::process_correspondence()
 	//copy 
 	src_copy_ = source_->get_ref_mesh(); // copy src mesh.
 
-	// setup matrix
+	// setup matrix( after set once, it doesn't changed.)
 	std::pair<Sparse<T>, ROWMAT(T)> S_terms = produce_smoothness();
 	std::pair<Sparse<T>, ROWMAT(T)> I_terms = produce_identity();
 
-	//add marker
+	//add marker(hard constraint.. it means remove related columns from matrix A.)
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = add_marker_constraint_to_matrix(S_terms);
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = add_marker_constraint_to_matrix(I_terms);
 
-	/*phase1(this->ws_, this->wi_);
-	ROWMAT(T) raw_x = phase2(this->ws_, this->wi_, this->wc_[i]);
-	ROWMAT(T) new_x = recover_marker_points_to_result(raw_x);
-	*/
-	make_triangle_correspondence(); 
+	ROWMAT(T) first_estimated_x = phase1(reduced_S_terms, reduced_I_terms); // we use this x coooooooooord to find valid closest points~!
+	ROWMAT(T) raw_x = phase2(reduced_S_terms, reduced_I_terms); // yeah-a now phase 2. 
+	ROWMAT(T) new_x = recover_marker_points_to_result(raw_x); // remove normal vectors and 
+															  // attach removed marker from add_marker_constraint_to_matrix() term. :p
+		
+
+	make_triangle_correspondence();  // finally make corrs!! foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo!!!!!!!!!!
 }
 
 template<typename T>
@@ -337,18 +339,20 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 
 
 template <typename T>
-void DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
+ROWMAT(T) DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
 
-	Sparse<T> s_term = produce_smoothness();
-	Sparse<T> i_term = produce_identity();
-	Sparse<T> A = ws * s_term + wi * i_term ;
+	//Sparse<T> s_term = produce_smoothness();
+	//Sparse<T> i_term = produce_identity();
+	//Sparse<T> A = ws * s_term + wi * i_term ;
+	return ROWMAT(T)();
 }
 
 template <typename T>
-void DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair, A_and_b<T>& C_pair)
+ROWMAT(T) DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
-	Sparse<T> A = ws * s_term + wi * i_term + wc * c_term;
+	//Sparse<T> A = ws * s_term + wi * i_term + wc * c_term;
+	return ROWMAT(T)();
 
 }
 
@@ -357,11 +361,37 @@ void DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair, A_an
 template<typename T>
 A_and_b<T> DeformationTransfer<T>::add_marker_constraint_to_matrix(const A_and_b<T>& ab_pair)//, ROWMAT(T)& rhs_constraints)
 {
+	const int marker_num = marker_index_.size();
+	std::set<int> marker_set;
+	std::for_each(marker_index_.begin(), marker_index_.end(), [&marker_set](std::tuple<int,int> tp) {marker_set.insert(std::get<0>(tp)); });
+
+	const Sparse<T>& org_A = ab_pair.first;
+	const ROWMAT(T)& org_b = ab_pair.second;
+	Sparse<T> reduced_A(org_A.rows(), org_A.cols() - marker_num*3);
+	reduced_A.setZero();
+	
+	int new_idx=0;
+	for (int i = 0; i < org_A.cols(); i++) {
+		if (marker_set.count(i)) {
+			continue;
+		}
+		else {
+			reduced_A.col(new_idx++) = org_A.col(i);
+
+		}
+	}
 
 
-
-	return std::make_pair(Sparse<T>(), ROWMAT(T)());
+	return std::make_pair(reduced_A, ROWMAT(T)());
 }
+
+template<typename T>
+ROWMAT(T) DeformationTransfer<T>::recover_marker_points_to_result(const ROWMAT(T)& x)
+{
+	return ROWMAT(T)();
+}
+
+
 
 template <typename T>
 void DeformationTransfer<T>::compile()
