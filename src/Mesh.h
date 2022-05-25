@@ -129,11 +129,25 @@ public:
 		return t;
 	}
 
+	inline ROWMAT(T) get_centroid_tri() {
+		ROWMAT(T) reval;
+		reval.resize(F.rows(), 3);
+		for (int i = 0; i < F.rows(); i++) {
+			int v1 = F(i, 0), v2 = F(i,1), v3=F(i,2);
+			reval.row(i) = (V.row(v1) + V.row(v2) + V.row(v3)) / 3;
+		}
+		return reval;
+	}
 
 
+	void update_v(const ROWMAT(T)& verts){
+		dirty_flag_ = true;
+		assert(verts.rows() == v_size_ && "verts_size and v_size_ is diff");
+		V.block(0, 0, v_size_, 0) = verts;
+	}
 
 
-	inline void calc_normal_vector() {
+	inline ROWMAT(T) calc_normal_vector() {
 		if (dirty_flag_) {
 			using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
 			fn_size_ = v_size_ + f_size_;
@@ -151,6 +165,6 @@ public:
 			}
 		}
 
-		
+		return V.block(v_size_, 0, f_size_, 3);
 	}
 };

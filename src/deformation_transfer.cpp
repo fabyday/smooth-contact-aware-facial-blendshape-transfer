@@ -98,23 +98,19 @@ void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
 
 
 template <typename T>
-inline Sparse<T> DeformationTransfer<T>::produce_smoothness()
+inline A_and_b<T>  DeformationTransfer<T>::produce_smoothness()
 {
 	Mesh<T>& mesh_ref = source_->get_ref_mesh();
 	ROWMAT(int)& face = mesh_ref.get_face();
 	ROWMAT(T)& verts = mesh_ref.get_verts();
-	
 
 	Face2Faces& f2f = mesh_ref.get_f2f();
 
 	const int row_size = mesh_ref.face_size();
 	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
 
-
-
 	Sparse<T> G(3*(3*row_size), 3*col_size);
-	G.setZero();
-	
+	G.setZero();	
 
 	for (int i = 0; i < row_size; i++) {
 		TriangleDeformationGradient<T, SIZE> tdg_i = source_->get_inv_matrix(i); // Triangle i 
@@ -126,11 +122,13 @@ inline Sparse<T> DeformationTransfer<T>::produce_smoothness()
 			sub_sparse<T>(G, tdg_adj);
 		}
 	}
-	return G;
+	// return 
+	// G , b(zeros like row size of G)
+	return std::make_pair(G, ROWMAT(T)::Zero(G.rows(), 1));
 }
 
 template <typename T>
-Sparse<T> DeformationTransfer<T>::produce_identity(){
+A_and_b<T>  DeformationTransfer<T>::produce_identity(){
 	Mesh<T>& mesh_ref = source_->get_ref_mesh();
 	ROWMAT(int)& face = mesh_ref.get_face();
 	ROWMAT(T)& verts = mesh_ref.get_verts();
@@ -152,14 +150,26 @@ Sparse<T> DeformationTransfer<T>::produce_identity(){
 	}
 	
 	
-	ROWMAT(T) b;
-	b.resize(G.rows(), 1);
+	ROWMAT(T) b = ROWMAT(T)::Zero(G.rows(), 1);
+	ROWMAT(T) eye = ROWMAT(T)::Identity(3, 3);
 
-	return G;
+
+	//[1, 0, 0]^T
+	// ...
+	//[0, 1, 0]^T
+	// ...
+	//[0, 0, 1]^T
+	for (int i = 0; i < row_size; i++){
+		b.block(0 * row_size + 3 * i, 0, 3, 1) = eye.row(0).transpose();
+		b.block(1 * row_size + 3 * i, 0, 3, 1) = eye.row(1).transpose();
+		b.block(2 * row_size + 3 * i, 0, 3, 1) = eye.row(2).transpose();
+	}
+
+	return std::make_pair(G, b);
 }
 
 template <typename T>
-Sparse<T> DeformationTransfer<T>::produce_closest()
+A_and_b<T>  DeformationTransfer<T>::produce_closest()
 {
 
 	Mesh<T>& mesh_ref = source_->get_ref_mesh();
@@ -191,8 +201,8 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 		(*cloud)[i].y = tgt_v.row(i)[1];
 		(*cloud)[i].z = tgt_v.row(i)[2];
 	}
-	pcl::KdTreeFLANN<pcl::PointXYZ> src_kdtree_;
-	src_kdtree_.setInputCloud(cloud);
+	pcl::KdTreeFLANN<pcl::PointXYZ> tgt_kdtree_;
+	tgt_kdtree_.setInputCloud(cloud);
 
 	ROWMAT(T)& src_v = source_->get_ref_mesh().get_verts();
 	ROWMAT(T) src_vn = source_->get_ref_mesh().calc_vertex_normal_vector();
@@ -204,6 +214,10 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 	
 	const int default_k = 200;
 	const int K = std::min(default_k, target_->get_v_size());
+
+
+
+	
 	//search nearest point-map
 	for (int i = 0; i < source_->get_v_size(); i++) {
 		std::vector<int> knn_idx(K);
@@ -213,7 +227,7 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 		xyz.x = src_v.row(i)[0]; xyz.y = src_v.row(i)[1]; xyz.z = src_v.row(i)[2];
 		float angle;
 		float max_angle = 90 * M_PI / 180; // to radian
-		if (src_kdtree_.nearestKSearch(xyz , K, knn_idx, squared_distances) > 0) {
+		if (tgt_kdtree_.nearestKSearch(xyz , K, knn_idx, squared_distances) > 0) {
 			for (int j = 0; j < K; j++) {
 				angle = std::acos( tgt_vn.row(j).dot(src_vn.row(i)));
 				if (std::abs(angle) < max_angle) {
@@ -243,14 +257,111 @@ template <typename T>
 void DeformationTransfer<T>::process_correspondence()
 {
 	using res_mat = Eigen::Matrix<T, -1, -1, Eigen::RowMajor>;
-	process_neighbor();
+	process_neighbor(); // do nada.
 
-	Sparse<T> s_term = produce_smoothness();
-	Sparse<T> i_term = produce_identity();
-	Sparse<T> c_term = produce_closest();
+	//copy 
+	src_copy_ = source_->get_ref_mesh(); // copy src mesh.
+
+	// setup matrix
+	std::pair<Sparse<T>, ROWMAT(T)> S_terms = produce_smoothness();
+	std::pair<Sparse<T>, ROWMAT(T)> I_terms = produce_identity();
+
+	//add marker
+	std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = add_marker_constraint_to_matrix(S_terms);
+	std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = add_marker_constraint_to_matrix(I_terms);
+
+	/*phase1(this->ws_, this->wi_);
+	ROWMAT(T) raw_x = phase2(this->ws_, this->wi_, this->wc_[i]);
+	ROWMAT(T) new_x = recover_marker_points_to_result(raw_x);
+	*/
+	make_triangle_correspondence(); 
+}
+
+template<typename T>
+void DeformationTransfer<T>::make_triangle_correspondence()
+{
+	const int src_f_size = source_->get_ref_mesh().face_size();
+	ROWMAT(T) src_tri_centroid = source_->get_ref_mesh().get_centroid_tri();
+	ROWMAT(T) src_vn = source_->get_ref_mesh().calc_normal_vector(); //// face normal
+
+
+
+	const int tgt_f_size = target_->get_ref_mesh().face_size();
+	ROWMAT(T) tgt_tri_centroid = target_->get_ref_mesh().get_centroid_tri();
+	ROWMAT(T) tgt_vn = target_->get_ref_mesh().calc_normal_vector(); // face normal
+
+	corr_tri_tgt_from_src.resize(src_f_size);
+
+	//setup kdtree
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+	cloud->resize(tgt_f_size);
+	for (int i = 0; i < cloud->size(); i++) {
+		(*cloud)[i].x = tgt_tri_centroid.row(i)[0];
+		(*cloud)[i].y = tgt_tri_centroid.row(i)[1];
+		(*cloud)[i].z = tgt_tri_centroid.row(i)[2];
+	}
+
+	pcl::KdTreeFLANN<pcl::PointXYZ> tgt_kdtree_;
+	tgt_kdtree_.setInputCloud(cloud);
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr query_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+	cloud->resize(source_->get_v_size());
+
+	const int default_k = 200;
+	const int K = std::min(default_k, target_->get_v_size());
+	//search nearest point-map
+	
+	for (int i = 0; i < src_f_size; i++) {
+		std::vector<int> knn_idx(K);
+		std::vector<float> squared_distances(K);
+		pcl::PointXYZ xyz;
+
+		xyz.x = src_tri_centroid.row(i)[0]; 
+		xyz.y = src_tri_centroid.row(i)[1]; 
+		xyz.z = src_tri_centroid.row(i)[2];
+		float angle;
+		float max_angle = 90 * M_PI / 180; // to radian
+		if (tgt_kdtree_.nearestKSearch(xyz, K, knn_idx, squared_distances) > 0) {
+			for (int j = 0; j < knn_idx.size(); j++) {
+				angle = std::acos(tgt_vn.row(knn_idx[j]).dot(src_vn.row(i)));
+				if (std::abs(angle) < max_angle) {
+					corr_tri_tgt_from_src[i].emplace_back(knn_idx[j]); // (src_idx, tgt_idx)
+				}
+			}
+		}
+	}
+
 
 }
 
+
+
+template <typename T>
+void DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
+{
+
+	Sparse<T> s_term = produce_smoothness();
+	Sparse<T> i_term = produce_identity();
+	Sparse<T> A = ws * s_term + wi * i_term ;
+}
+
+template <typename T>
+void DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair, A_and_b<T>& C_pair)
+{
+	Sparse<T> A = ws * s_term + wi * i_term + wc * c_term;
+
+}
+
+
+
+template<typename T>
+A_and_b<T> DeformationTransfer<T>::add_marker_constraint_to_matrix(const A_and_b<T>& ab_pair)//, ROWMAT(T)& rhs_constraints)
+{
+
+
+
+	return std::make_pair(Sparse<T>(), ROWMAT(T)());
+}
 
 template <typename T>
 void DeformationTransfer<T>::compile()
@@ -274,20 +385,9 @@ void DeformationTransfer<T>::solve()
 	if (compile_flag_)
 		compile();
 
-	phase1();
-	for (int i = 0; i < wc_.size(); i++) {
-		phase1();
-		phase2();
-	}
-}
-
-template <typename T>
-void DeformationTransfer<T>::phase1()
-{
-
-}
-
-template <typename T>
-void DeformationTransfer<T>::phase2()
-{
+	//phase1();
+	//for (int i = 0; i < wc_.size(); i++) {
+	//	phase1();
+	//	phase2();
+	//}
 }
