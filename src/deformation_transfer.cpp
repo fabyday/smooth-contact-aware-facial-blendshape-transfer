@@ -183,10 +183,10 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
 	cloud->resize(target_->get_v_size());
 	ROWMAT(T)& tgt_v = target_->get_ref_mesh().get_verts();
-	ROWMAT(T)& tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
-	ROWMAT(T) /*tgt_vn*/(2,3);
+	ROWMAT(T) tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
+	//ROWMAT(T) /*tgt_vn*/(2,3);
 
-	for (int i = 0; cloud->size(); i++) {
+	for (int i = 0; i < cloud->size(); i++) {
 		(*cloud)[i].x = tgt_v.row(i)[0];
 		(*cloud)[i].y = tgt_v.row(i)[1];
 		(*cloud)[i].z = tgt_v.row(i)[2];
@@ -195,10 +195,12 @@ Sparse<T> DeformationTransfer<T>::produce_closest()
 	src_kdtree_.setInputCloud(cloud);
 
 	ROWMAT(T)& src_v = source_->get_ref_mesh().get_verts();
-	ROWMAT(T)& src_vn = source_->get_ref_mesh().calc_vertex_normal_vector();
+	ROWMAT(T) src_vn = source_->get_ref_mesh().calc_vertex_normal_vector();
 	//ROWMAT(T) src_vn(2,3);
+	std::cout << src_vn.size() << std::endl;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr query_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-	cloud->resize(source_->get_v_size());
+	std::cout << src_vn.size() << std::endl;
+   	cloud->resize(source_->get_v_size());
 	
 	const int default_k = 200;
 	const int K = std::min(default_k, target_->get_v_size());

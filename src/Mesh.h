@@ -2,6 +2,7 @@
 #include <string>
 #include <igl/read_triangle_mesh.h>
 #include "Primitives.h"
+#include <algorithm>
 template<typename T>
 class Mesh { //lazy evaluation.
 public:
@@ -93,17 +94,37 @@ public:
 	inline int face_size() {
 		return f_size_;
 	}
-	inline ROWMAT(T)& calc_vertex_normal_vector() {
+	inline ROWMAT(T) calc_vertex_normal_vector() {
 		bool dirty_flag = dirty_flag_;
 		calc_normal_vector();// face normal
-		int size = v_size_ + f_size_ + v_size_;
+		//int size = v_size_ + f_size_ + v_size_;
+		int size = fn_size_ + v_size_;
 		vn_size_ = size;
 		V.conservativeResize(vn_size_, 3);
+		V.block(fn_size_, 0, v_size_, 3).setZero();
 
+		const auto VFN = V.block(0, 0, fn_size_, 3);
 
-		
-		ROWMAT(T)&& t = V.block(fn_size_, 0, vn_size_, 3);
+		for (int i = 0; i < v2f_.vertidx_.size(); i++) {
+			ROWMAT(T) v_norm_vec = ROWMAT(T)::Zero(1, 3);
+			const int neighbor_f_size = v2f_.vertidx_[i].size();
+			std::for_each(v2f_.vertidx_[i].begin(), v2f_.vertidx_[i].end(),
+				[neighbor_f_size, &v_norm_vec, &VFN](int s) { v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; }
+			);
+			V.row(i + fn_size_) = v_norm_vec;
+		}
 
+		// test foreach
+		//float test = 0;
+		//std::vector as = { 1,2,3,4,5,6,7,8,9,10 };
+		//auto ssize = as.size();
+		////auto f = [&test, ssize](int s) { std::cout << (float)s/ssize; };
+		//auto f = [&test, ssize](int s) { test += s / (float)ssize; };
+		//std::for_each(as.begin(), as.end(),
+		//	f
+		//);
+		//std::cout << test;
+		ROWMAT(T) t = V.block(fn_size_, 0, v_size_, 3); //hard copy...
 
 		return t;
 	}
