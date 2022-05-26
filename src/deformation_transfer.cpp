@@ -341,17 +341,26 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 template <typename T>
 ROWMAT(T) DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
+	Sparse<T> new_A = ws_ * S_pair.first + wi_ * I_pair.first;
+	Sparse<T> AtA =  new_A.transpose().eval()* new_A;
+	AtA.makeCompressed();
 
-	//Sparse<T> s_term = produce_smoothness();
-	//Sparse<T> i_term = produce_identity();
-	//Sparse<T> A = ws * s_term + wi * i_term ;
-	return ROWMAT(T)();
+	ROWMAT(T) new_b = ws_ * S_pair.second + wi_ * I_pair.second;
+	Eigen::Matrix<T, -1, -1> new_col_b = new_A.transpose() * new_b;
+	Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
+	slvr.compute(AtA);
+	Eigen::Matrix<T, -1,-1> cx = slvr.solve(new_col_b);
+	ROWMAT(T) reval = cx;
+
+	return reval;
 }
 
 template <typename T>
 ROWMAT(T) DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
 	//Sparse<T> A = ws * s_term + wi * i_term + wc * c_term;
+	Sparse<T> A = ws * S_pair.first + wi * I_pair.first + 
+	Sparse<T> ATA;
 	return ROWMAT(T)();
 
 }
@@ -361,15 +370,44 @@ ROWMAT(T) DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 template<typename T>
 A_and_b<T> DeformationTransfer<T>::add_marker_constraint_to_matrix(const A_and_b<T>& ab_pair)//, ROWMAT(T)& rhs_constraints)
 {
-	const int marker_num = marker_index_.size();
 	std::set<int> marker_set;
 	std::for_each(marker_index_.begin(), marker_index_.end(), [&marker_set](std::tuple<int,int> tp) {marker_set.insert(std::get<0>(tp)); });
 
 	const Sparse<T>& org_A = ab_pair.first;
 	const ROWMAT(T)& org_b = ab_pair.second;
+	
+	const int marker_num = marker_index_.size();
+	const int A_cols_num = org_A.cols()/3;
+
+	// new A and b
 	Sparse<T> reduced_A(org_A.rows(), org_A.cols() - marker_num*3);
 	reduced_A.setZero();
+
+	ROWMAT(T) hc_x = ROWMAT(T)::Zero(org_A.cols(), 1);
+	ROWMAT(T)& tgt_V = target_->get_ref_mesh().get_verts();
 	
+	// layout
+	// x
+	// y
+	// z
+	for(int i = 0 ; i < marker_index_.size() ; i++){
+		const int src_idx = std::get<0>(marker_index_[i]);
+		const int tgt_idx = std::get<1>(marker_index_[i]);
+		hc_x(0 * A_cols_num + src_idx, 0) = tgt_V(tgt_idx, 0);
+		hc_x(1 * A_cols_num + src_idx, 0) = tgt_V(tgt_idx, 1);
+		hc_x(2 * A_cols_num + src_idx, 0) = tgt_V(tgt_idx, 2);
+
+	}
+
+	// A*x = b
+	// reducedA*x + A*hc_x = b
+	// reducedA*x = b - A*hc_x
+	//-org_A.dot(hc_x) + org_b;
+	//ROWMAT(T) new_b =  // rhs
+	ROWMAT(T) new_b = -org_A * hc_x + org_b;  // rhs
+	 
+	
+
 	int new_idx=0;
 	for (int i = 0; i < org_A.cols(); i++) {
 		if (marker_set.count(i)) {
@@ -380,15 +418,44 @@ A_and_b<T> DeformationTransfer<T>::add_marker_constraint_to_matrix(const A_and_b
 
 		}
 	}
+	
+	
+	//column_subset.col(j) = m.col(indices[j]);
 
+	
 
-	return std::make_pair(reduced_A, ROWMAT(T)());
+	return std::make_pair(reduced_A, new_b);
 }
 
 template<typename T>
 ROWMAT(T) DeformationTransfer<T>::recover_marker_points_to_result(const ROWMAT(T)& x)
 {
-	return ROWMAT(T)();
+	ROWMAT(T)& tgt_V = target_->get_ref_mesh().get_verts();
+	ROWMAT(T)& src_V = source_->get_ref_mesh().get_verts();
+
+	std::set<int> marker_set;
+	std::for_each(marker_index_.begin(), marker_index_.end(), [&marker_set](std::tuple<int, int> tp) {marker_set.insert(std::get<0>(tp)); });
+
+	const int src_rows = src_V.rows();
+	ROWMAT(T) new_x(src_rows, 3);
+	
+	int j = 0;
+	for (int i = 0; i < src_rows; i++) {
+		if (marker_set.count(i)) {
+			continue;
+		}
+		else {
+			new_x.row(i) = x.row(j++);
+		}
+	}
+	
+	for (int i = 0; i < marker_index_.size(); i++) {
+		const int src_idx = std::get<0>(marker_index_[i]);
+		const int tgt_idx = std::get<1>(marker_index_[i]);
+		new_x.row(src_idx) = tgt_V.row(tgt_idx);
+	}
+
+	return new_x;
 }
 
 
