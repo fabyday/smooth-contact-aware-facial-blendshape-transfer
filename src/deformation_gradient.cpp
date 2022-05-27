@@ -93,7 +93,7 @@ template<typename T, int S>
 	 using Row3mat = Eigen::Matrix<T, 3, 3, Eigen::RowMajor>;
 	 calc_make_G_mat();
 	 Mesh<T>::RowmatI& fs = ref_->get_face();
-	 ROWMAT(T)& vs = ref_->get_verts();
+	 ROWMAT(T) vs = ref_->get_verts();
 	 deformation_gradients_[0].resize(fs.rows());
 	 DeformationGradientCollection<T, 4>& data = deformation_gradients_[0];
 	 for (int i = 0; i < deformation_gradients_[0].size(); i++) {

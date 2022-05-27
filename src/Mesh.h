@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <igl/read_triangle_mesh.h>
+#include <igl/write_triangle_mesh.h>
 #include "Primitives.h"
 #include <algorithm>
 template<typename T>
@@ -43,10 +44,12 @@ public:
 		v_size_ = V.rows();
 		f_size_ = F.rows();
 		init_geo_struct();
-
-
-
 	}
+
+	inline void save_file(string name) {
+		igl::write_triangle_mesh(name, V.block(0,0, v_size_, 3), F.block(0,0, f_size_, 3));
+	}
+
 	void init_geo_struct() {
 		Mesh<T>& src_mesh_ptr = *this;
 		ROWMAT(int) face = src_mesh_ptr.get_face();
@@ -82,9 +85,20 @@ public:
 	inline vert2Faces& get_v2f() { return v2f_; }
 
 
-	inline ROWMAT(T)& get_verts() {
-		return V;
+	inline Eigen::Block<ROWMAT(T)> get_verts() {
+		return V.block(0,0,v_size_ ,3);
 	}
+	inline Eigen::Block<ROWMAT(T)> get_face_normal_verts() {
+		calc_normal_vector();
+		return V.block(v_size_, 0, fn_size_, 3);
+	}
+
+	inline Eigen::Block<ROWMAT(T)> get_vertex_normal_verts() {
+		calc_vertex_normal_vector();
+		return V.block(fn_size_, 0, vn_size_, 3);
+	}
+
+
 	inline RowmatI& get_face() {
 		return F;
 	}
@@ -96,23 +110,25 @@ public:
 	}
 	inline ROWMAT(T) calc_vertex_normal_vector() {
 		bool dirty_flag = dirty_flag_;
+		
 		calc_normal_vector();// face normal
 		//int size = v_size_ + f_size_ + v_size_;
-		int size = fn_size_ + v_size_;
-		vn_size_ = size;
-		V.conservativeResize(vn_size_, 3);
-		V.block(fn_size_, 0, v_size_, 3).setZero();
+		if(dirty_flag){
+			int size = fn_size_ + v_size_;
+			vn_size_ = size;
+			V.conservativeResize(vn_size_, 3);
+			V.block(fn_size_, 0, v_size_, 3).setZero();
 
-		const auto VFN = V.block(0, 0, fn_size_, 3);
+			const auto VFN = V.block(0, 0, fn_size_, 3);
 
-		for (int i = 0; i < v2f_.vertidx_.size(); i++) {
-			ROWMAT(T) v_norm_vec = ROWMAT(T)::Zero(1, 3);
-			const int neighbor_f_size = v2f_.vertidx_[i].size();
-			std::for_each(v2f_.vertidx_[i].begin(), v2f_.vertidx_[i].end(),
-				[neighbor_f_size, &v_norm_vec, &VFN](int s) { v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; }
-			);
-			V.row(i + fn_size_) = v_norm_vec;
-		}
+			for (int i = 0; i < v2f_.vertidx_.size(); i++) {
+				ROWMAT(T) v_norm_vec = ROWMAT(T)::Zero(1, 3);
+				const int neighbor_f_size = v2f_.vertidx_[i].size();
+				std::for_each(v2f_.vertidx_[i].begin(), v2f_.vertidx_[i].end(),
+					[neighbor_f_size, &v_norm_vec, &VFN](int s) { v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; }
+				);
+				V.row(i + fn_size_) = v_norm_vec;
+			}
 
 		// test foreach
 		//float test = 0;
@@ -124,6 +140,7 @@ public:
 		//	f
 		//);
 		//std::cout << test;
+		}
 		ROWMAT(T) t = V.block(fn_size_, 0, v_size_, 3); //hard copy...
 
 		return t;
@@ -143,7 +160,7 @@ public:
 	void update_v(const ROWMAT(T)& verts){
 		dirty_flag_ = true;
 		assert(verts.rows() == v_size_ && "verts_size and v_size_ is diff");
-		V.block(0, 0, v_size_, 0) = verts;
+		V.block(0, 0, v_size_, 3) = verts;
 	}
 
 
@@ -167,4 +184,8 @@ public:
 
 		return V.block(v_size_, 0, f_size_, 3);
 	}
+
+
+
+
 };

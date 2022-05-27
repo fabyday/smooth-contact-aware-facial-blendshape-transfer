@@ -76,7 +76,7 @@ private:
 	// add_marker-> phase1 -> phase2 -> recover_marker_point -> make_triangle_correspondence
 	A_and_b<T> add_marker_constraint_to_matrix(const A_and_b<T>& ab_pair);
 	ROWMAT(T) phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair);
-	ROWMAT(T) phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair, A_and_b<T>& C_pair);
+	ROWMAT(T) phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair);
 	ROWMAT(T) recover_marker_points_to_result(const ROWMAT(T)& x); 
 
 	// final call in compile
