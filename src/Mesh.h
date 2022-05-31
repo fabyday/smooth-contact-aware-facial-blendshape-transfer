@@ -45,6 +45,14 @@ public:
 		f_size_ = F.rows();
 		init_geo_struct();
 	}
+	inline void set_mesh(ROWMAT(T)& V, RowmatI& F) {
+		this->V = V;
+		this->F = F;
+		v_size_ = this->V.rows();
+		f_size_ = this->F.rows();
+		init_geo_struct();
+	}
+
 
 	inline void save_file(string name) {
 		igl::write_triangle_mesh(name, V.block(0,0, v_size_, 3), F.block(0,0, f_size_, 3));
@@ -84,6 +92,10 @@ public:
 	inline Edge2Faces& get_e2f() { return e2f_; }
 	inline vert2Faces& get_v2f() { return v2f_; }
 
+
+	inline ROWMAT(T) get_all_components_verts() {
+		return V;
+	}
 
 	inline Eigen::Block<ROWMAT(T)> get_verts() {
 		return V.block(0,0,v_size_ ,3);

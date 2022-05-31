@@ -3,6 +3,15 @@ project(smooth-contact-aware-facial-blendshapes-transfer)
 
 cmake_policy(SET CMP0074 NEW)
 
+
+#if(CMAKE_CONFIGURATION_TYPES)
+#	if(NOT "DEBUG_WITH_LOG" IN_LIST CMAKE_CONFIGURATION_TYPES)
+#		list(APPEND CMAKE_CONFIGURATION_TYPES "DEBUG_WITH_LOG")
+#	endif()
+#endif()
+
+
+
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmakes)
 
 
@@ -26,6 +35,16 @@ option(LIBIGL_WITH_TETGEN            "Use Tetgen"                   ON)
 option(LIBIGL_WITH_TRIANGLE          "Use Triangle"                 ON)
 option(LIBIGL_WITH_PREDICATES        "Use exact predicates"         ON)
 option(LIBIGL_WITH_XML               "Use XML"                      ON)
+option(PRINT_PRETTY_LOG_ALL               "Use matrix log"                      OFF)
+option(PRINT_PRETTY_LOG_DENSE               "Use matrix log"                      OFF)
+
+if (PRINT_PRETTY_LOG_ALL)
+  add_definitions(-DPRINT_PRETTY_LOG_ALL)
+endif()
+if (PRINT_PRETTY_LOG_DENSE)
+  add_definitions(-DPRINT_PRETTY_LOG_DENSE)
+endif()
+
 
 # library
 include(libigl)
@@ -43,3 +62,4 @@ add_definitions(-D_MBCS)
 add_subdirectory(src)
 # excutable
 add_subdirectory(tests)
+

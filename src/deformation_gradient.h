@@ -1,5 +1,5 @@
 #pragma once
-
+#include "pretty_log.h"
 #include "Primitives.h"
 #include "Mesh.h"
 #include <vector>
@@ -79,7 +79,6 @@ struct DeformationGradientCollection { // iterator.....?
 template<typename T, int SIZE=4>
 class DeformationGradient {
 public :
-	DeformationGradient(int targets_num=10);
 	void add_reference(Mesh<T>& m);
 	void add_target(Mesh<T>& m);
 	void add_targets(std::vector<Mesh<T>>& target);
@@ -89,6 +88,14 @@ public :
 	void compile();
 	void get_normal_vector();
 	void calc_normal_vector();
+
+
+	bool is_compiled_;
+	DeformationGradient(void) {
+		is_compiled_ = false;
+	}
+	
+	//DeformationGradient(int targets_num=10) {}
 
 	inline Mesh<T>& get_ref_mesh() {
 		return *ref_;

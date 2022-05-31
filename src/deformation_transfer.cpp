@@ -1,5 +1,10 @@
 #include "deformation_trasnfer.h"
 #include <cmath>
+
+#include "pretty_log.h"
+
+
+
 template<typename T>
 void DeformationTransfer<T>::process_neighbor()
 {
@@ -44,12 +49,12 @@ void DeformationTransfer<T>::process_neighbor()
 //}
 
 template <typename T>
-void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
+void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows() / 3);
 	const int col_size = static_cast<int>(A.cols() / 3);
-	const int tri_num = tdg.tri_num_;
+	//const int tri_num = tdg.tri_num_;
 	//std::cout << "tri num" << tri_num << std::endl;
 	//std::cout << "ind :" << tdg.get_ind().transpose() << std::endl;
 	for (int ax = 0; ax < 3; ax++) {
@@ -62,21 +67,30 @@ void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
 			//	<< ") / "
 			//	<< "("
 			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) += (invV_adj(i, 2));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) += (invV_adj(i, 2));
+
 		}
 	}
+	log_msg("=========")
+	log_msg("added")
+	log_dense(tdg.get_ind())
+	log_dense(invV_adj)
+	log_sparse(A)
+	//log_sparse(A, invV_adj, tdg)
+
+	
 	
 }
 template <typename T>
-void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
+void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
 	const int row_size = static_cast<int>(A.rows() / 3);
 	const int col_size = static_cast<int>(A.cols() / 3);
-	const int tri_num = tdg.tri_num_;
+	//const int tri_num = tdg.tri_num_;
 	//std::cout << "tri num" <<  tri_num<<std::endl; 
 	for (int ax = 0; ax < 3; ax++) {
 		for (int i = 0; i < 3; i++) {
@@ -88,12 +102,17 @@ void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg) {
 			//	<< ") / " 
 			//	<< "(" 
 			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) -= (invV_adj(i, 0));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) -= (invV_adj(i, 1));
-			A.coeffRef(row_size * ax + tri_num * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) -= (invV_adj(i, 2));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) -= (invV_adj(i, 0));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) -= (invV_adj(i, 1));
+			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(3, 0)) -= (invV_adj(i, 2));
 		}
 	}
+	log_msg("========")
+	log_msg("sub")
+	log_dense(tdg.get_ind())
+	log_dense(invV_adj)
+	log_sparse(A)
 }
 
 
@@ -114,12 +133,11 @@ inline A_and_b<T>  DeformationTransfer<T>::produce_smoothness()
 
 	for (int i = 0; i < row_size; i++) {
 		TriangleDeformationGradient<T, SIZE> tdg_i = source_->get_inv_matrix(i); // Triangle i 
-		add_sparse<T>(G, tdg_i);
-		
 		for (auto iter = f2f.faceidx_[i].begin(); iter != f2f.faceidx_[i].end(); iter++) {
 			const int adj_face_idx = *iter;
 			TriangleDeformationGradient<T, SIZE>& tdg_adj = source_->get_inv_matrix(adj_face_idx);
-			sub_sparse<T>(G, tdg_adj);
+			add_sparse<T>(G, tdg_i, i);
+			sub_sparse<T>(G, tdg_adj, i);
 		}
 	}
 	// return 
@@ -134,8 +152,6 @@ A_and_b<T>  DeformationTransfer<T>::produce_identity(){
 	ROWMAT(T) verts = mesh_ref.get_verts();
 
 
-	Face2Faces& f2f = mesh_ref.get_f2f();
-
 	const int row_size = mesh_ref.face_size();
 	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
 
@@ -146,7 +162,7 @@ A_and_b<T>  DeformationTransfer<T>::produce_identity(){
 	
 	for (int i = 0; i < row_size; i++) {
 		TriangleDeformationGradient<T, SIZE>& invV_i = source_->get_inv_matrix(i); // Triangle i 
-		add_sparse<T>(G, invV_i);
+		add_sparse<T>(G, invV_i, i);
 	}
 	
 	
@@ -160,10 +176,11 @@ A_and_b<T>  DeformationTransfer<T>::produce_identity(){
 	// ...
 	//[0, 0, 1]^T
 	for (int i = 0; i < row_size; i++){
-		b.block(0 * row_size + 3 * i, 0, 3, 1) = eye.row(0).transpose();
-		b.block(1 * row_size + 3 * i, 0, 3, 1) = eye.row(1).transpose();
-		b.block(2 * row_size + 3 * i, 0, 3, 1) = eye.row(2).transpose();
+		b.block<3,1>(0 * 3 * row_size + 3 * i, 0) = eye.row(0).transpose();
+		b.block<3,1>(1 * 3 * row_size + 3 * i, 0) = eye.row(1).transpose();
+		b.block<3,1>(2 * 3 * row_size + 3 * i, 0) = eye.row(2).transpose();
 	}
+	log_dense(b)
 
 	return std::make_pair(G, b);
 }
@@ -282,11 +299,13 @@ void DeformationTransfer<T>::process_correspondence()
 	//add marker(hard constraint.. it means remove related columns from matrix A.)
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = add_marker_constraint_to_matrix(S_terms);
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = add_marker_constraint_to_matrix(I_terms);
+	//std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = S_terms;
+	//std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = I_terms;
 
 	src_copy_.save_file("before_.obj");
 	ROWMAT(T) first_estimated_x = phase1(reduced_S_terms, reduced_I_terms); // we use this x coooooooooord to find valid closest points~!
 	src_copy_.update_v(recover_marker_points_to_result(first_estimated_x));
-	src_copy_.save_file("after_.obj");
+	src_copy_.save_file("after2_.obj");
 	ROWMAT(T) raw_x = phase2(reduced_S_terms, reduced_I_terms); // yeah-a now phase 2. 
 	ROWMAT(T) new_x = recover_marker_points_to_result(raw_x); // remove normal vectors and 
 															  // attach removed marker from add_marker_constraint_to_matrix() term. :p
@@ -357,12 +376,13 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 template <typename T>
 ROWMAT(T) DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
-	//Sparse<T> new_A = ws_ * S_pair.first + wi_ * I_pair.first;
-	Sparse<T> new_A =  I_pair.first;
+	Sparse<T> new_A = ws_ * S_pair.first + wi_ * I_pair.first;
+	//Sparse<T> new_A = S_pair.first;
 	Sparse<T> AtA =  new_A.transpose().eval()* new_A;
 	AtA.makeCompressed();
 
 	ROWMAT(T) new_b = ws_ * S_pair.second + wi_ * I_pair.second;
+	//ROWMAT(T) new_b = S_pair.second;
 	Eigen::Matrix<T, -1, -1> new_col_b = new_A.transpose() * new_b;
 	Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
 	slvr.compute(AtA);
@@ -429,7 +449,7 @@ A_and_b<T> DeformationTransfer<T>::add_marker_constraint_to_matrix(const A_and_b
 	
 
 	int new_idx=0;
-	const int redA_cols = reduced_A.cols();
+	const int redA_cols = static_cast<int>(reduced_A.cols()/3);
 	for (int i = 0; i < A_cols_num; i++) {
 		if (marker_set.count(i)) {
 			continue;
