@@ -123,7 +123,7 @@ public:
 	inline ROWMAT(T) calc_vertex_normal_vector() {
 		bool dirty_flag = dirty_flag_;
 		
-		calc_normal_vector();// face normal
+		calc_face_normal_vector();// face normal
 		//int size = v_size_ + f_size_ + v_size_;
 		if(dirty_flag){
 			int size = fn_size_ + v_size_;
@@ -140,6 +140,7 @@ public:
 					[neighbor_f_size, &v_norm_vec, &VFN](int s) { v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; }
 				);
 				V.row(i + fn_size_) = v_norm_vec;
+				V.row(i + fn_size_).normalize();
 			}
 
 		// test foreach
@@ -176,8 +177,9 @@ public:
 	}
 
 
-	inline ROWMAT(T) calc_normal_vector() {
+	inline ROWMAT(T) calc_face_normal_vector() {
 		if (dirty_flag_) {
+			dirty_flag_ = true;
 			using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
 			fn_size_ = v_size_ + f_size_;
 			F.conservativeResize(f_size_, 4);
@@ -190,13 +192,34 @@ public:
 				vec3 e2 = V.row(v3) - V.row(v1);
 				vec3 e3 = e1.cross(e2);
 				e3.normalize();
-				V.row(v_size_ + i) = e3 + V.row(v1);
+				V.row(v_size_ + i) = e3;
 			}
 		}
 
 		return V.block(v_size_, 0, f_size_, 3);
 	}
 
+	
+	//inline ROWMAT(T) calc_normal_vector() {
+	//	if (dirty_flag_) {
+	//		using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
+	//		fn_size_ = v_size_ + f_size_;
+	//		F.conservativeResize(f_size_, 4);
+	//		V.conservativeResize(fn_size_, 3);
+
+	//		for (int i = 0; i < F.rows(); i++) {
+	//			F.row(i)[3] = v_size_ + i;
+	//			int v1 = F.row(i)[0], v2 = F.row(i)[1], v3 = F.row(i)[2];
+	//			vec3 e1 = V.row(v2) - V.row(v1);
+	//			vec3 e2 = V.row(v3) - V.row(v1);
+	//			vec3 e3 = e1.cross(e2);
+	//			e3.normalize();
+	//			V.row(v_size_ + i) = e3 + V.row(v1);
+	//		}
+	//	}
+
+	//	return V.block(v_size_, 0, f_size_, 3);
+	//}
 
 
 

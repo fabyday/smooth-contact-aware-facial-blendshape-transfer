@@ -75,9 +75,9 @@ template<typename T, int S>
  void DeformationGradient<T, S>::calc_normal_vector(){
 
 	 if (S== 4) {
-		 ref_->calc_normal_vector();
+		 ref_->calc_face_normal_vector();
 		 for (int i = 0; i < targets_.size(); i++) {
-			 targets_[i]->calc_normal_vector();
+			 targets_[i]->calc_face_normal_vector();
 		 }
 	 }
  }
@@ -105,14 +105,15 @@ template<typename T, int S>
 		
 		Vec3 v1 = vs.row(v1_idx), v2 = vs.row(v2_idx),
 			 v3 = vs.row(v3_idx), v4 = vs.row(v4_idx);
-		
+		// current face normal v4 == v4 + v1...
 		Row3mat block;
 		block.col(0) = v2 - v1;
 		block.col(1) = v3 - v1;
-		block.col(2) = v4 - v1;
-		log_dense(block)
+		//block.col(2) = v4 - v1;
+		block.col(2) = v4; // v4 is locally normal vector.(Mesh<T> didn't add v1 to v4.)
+		PRETTY_LOG_BEGIN("test")log_dense(block)PRETTY_LOG_END("test")
 		block.transposeInPlace();
-		log_dense(block)
+		PRETTY_LOG_BEGIN("test")log_dense(block)PRETTY_LOG_END("test")
 		//block = block.inverse().eval; // T^T = V^T^-1 * V'^T
 		//mat = block; // assign block
 		mat = block.inverse(); // same as above comments.
@@ -224,7 +225,7 @@ template<typename T, int S>
 		Eigen::LLT<ROWMAT(T)> slvr3(reduced_A.transpose().eval() * reduced_A);
 		log_msg("cons result")
 		log_dense(slvr3.solve((reduced_A.transpose() * b_bar)))
-		PRETTY_LOG_END()
+		PRETTY_LOG_END("DG_STATE")
 		
 	 }
 	 
