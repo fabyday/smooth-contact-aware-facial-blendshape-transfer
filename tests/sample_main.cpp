@@ -1,3 +1,4 @@
+#define LOG_CATEGORY "vn"
 #include <iostream>
 #include <deformation_gradient.h>
 #include <dg_solver.h>

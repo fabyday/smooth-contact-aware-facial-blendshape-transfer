@@ -131,7 +131,7 @@ public:
 			V.conservativeResize(vn_size_, 3);
 			V.block(fn_size_, 0, v_size_, 3).setZero();
 
-			const auto VFN = V.block(0, 0, fn_size_, 3);
+			const ROWMAT(T) VFN = V.block(v_size_, 0, f_size_, 3); //TODO
 
 			for (int i = 0; i < v2f_.vertidx_.size(); i++) {
 				ROWMAT(T) v_norm_vec = ROWMAT(T)::Zero(1, 3);
@@ -195,7 +195,11 @@ public:
 				V.row(v_size_ + i) = e3;
 			}
 		}
-
+		PRETTY_LOG_BEGIN("fn", "vn")
+		log_dense(V.block(v_size_, 0, 20, 3))
+		log_msg("===")
+		log_dense(V.block(0, 0, 20, 3))
+		PRETTY_LOG_END("fn", "vn")
 		return V.block(v_size_, 0, f_size_, 3);
 	}
 

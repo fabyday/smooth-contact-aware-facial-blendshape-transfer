@@ -243,16 +243,16 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 
 	ROWMAT(T) src_v = src_copy_.get_verts();
 	ROWMAT(T) src_vn = src_copy_.calc_vertex_normal_vector();
-	//ROWMAT(T) src_vn(2,3);
 	PRETTY_LOG_BEGIN("produce_cloest")
 	std::cout << src_vn.size() << std::endl;
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr query_cloud(new pcl::PointCloud<pcl::PointXYZ>());
 	std::cout << src_vn.size() << std::endl;
 	PRETTY_LOG_END("produce_cloest")
    	cloud->resize(source_->get_v_size());
 	const int default_k = 200;
 	const int K = std::min(default_k, target_->get_v_size());
-
+	PRETTY_LOG_BEGIN("test", "vn")
+	log_dense(src_vn)
+	PRETTY_LOG_END("test", "vn")
 	//search nearest point-map
 	for (int i = 0; i < source_->get_v_size(); i++) {
 		std::vector<int> knn_idx(K);
@@ -297,6 +297,7 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 
 		
 		int row_idx = 0;
+		log_dense(tgt_v)
 		for (int i = 0; i < closest.size(); i++) {
 			//for (int j = 0; j < closest[i].size(); j++) {
 			if (closest[i] == -1)
@@ -496,20 +497,23 @@ ROWMAT(T) DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 	for (int i = 0; i < wc_.size(); i++) {
 		A_and_b<T> c_pair = produce_closest();
 		A_and_b<T> reduced_c_pair = add_marker_constraint_to_matrix(c_pair);
+		//A_and_b<T> reduced_c_pair = c_pair;
 
-		//Sparse<T> total_A;
-		//ROWMAT(T) new_b;
-		//concat_v_sparse<T>(total_A, cons_A, wc_[i] * reduced_c_pair.first);
-		//concat_v_dense<T>(new_b, cons_b, wc_[i] * reduced_c_pair.second);
-		
-		Sparse<T> total_A  = reduced_c_pair.first;
-		ROWMAT(T) new_b = reduced_c_pair.second;
+		Sparse<T> total_A;
+		ROWMAT(T) new_b;
+		concat_v_sparse<T>(total_A, cons_A, wc_[i] * reduced_c_pair.first);
+		concat_v_dense<T>(new_b, cons_b, wc_[i] * reduced_c_pair.second);
+		//Sparse<T> total_A  = reduced_c_pair.first;
+		std::cout << total_A.rows() << ", " << total_A.cols() << std::endl;
+		log_sparse(total_A)
+		//ROWMAT(T) new_b = reduced_c_pair.second;
 
 		Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
 		slvr.compute(total_A.transpose().eval() * total_A);
 		Eigen::Matrix<T, -1, -1> cx = slvr.solve(total_A.transpose() * new_b);
 		Eigen::Map<Eigen::Matrix<T, -1, -1>> tmp_map(cx.data(), static_cast<int>(cx.size() / 3), 3);
 		reval = tmp_map;
+		
 		src_copy_.update_v(recover_marker_points_to_result(reval));
 		src_copy_.save_file("phase2-"+ std::to_string(i) + ".obj");
 	}
