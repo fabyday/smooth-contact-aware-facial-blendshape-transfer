@@ -248,65 +248,22 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 	ROWMAT(int)& face = mesh_ref.get_face();
 	ROWMAT(T) verts = mesh_ref.get_verts();
 	Face2Faces& f2f = mesh_ref.get_f2f();
-	static int t = 0;
-	std::cout << "vec " << t << " : " << verts.row(64) << std::endl;
-	std::cout << "tgt normal " << t << " : " << target_->get_ref_mesh().calc_vertex_normal_vector().row(64) << std::endl;
-	std::cout << "src normal " << t++ << " : " << src_copy_.calc_vertex_normal_vector().row(64) << std::endl;
-	if (t < 100) {
-		auto x = src_copy_.get_v2f().vertidx_[64];
-		std::sort(x.begin(), x.end());
-		for (int i = 0; i < x.size(); i++) {
-			int s = x[i];
-			std::cout << s << " : " << src_copy_.calc_face_normal_vector().row(s) << std::endl;
-		}
-		std::cout<<"face detail" << std::endl;
-		for (int i = 0; i < x.size(); i++) {
-			std::cout << x[i] << " face" << std::endl;
-			for (int j = 0; j < 3; j++) {
-				int v_idx = face.row(x[i])(j);
-				std::cout << v_idx << " : " << verts.row(v_idx) << std::endl;
-			}
-
-		}
-	}
-
-
+	
 
 	const int row_size = mesh_ref.face_size();
 	const int col_size = mesh_ref.verts_size() + mesh_ref.face_size(); // normal_vert_num + vert_num
 
 
-		//
-	//std::vector<std::vector<int>> closest;
 	std::vector<int> closest;
 	closest.resize(src_copy_.verts_size());
 	std::fill(closest.begin(), closest.end(), -1);
-
-	////setup kdtree
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-	//cloud->resize(target_->get_v_size());
-	//ROWMAT(T) tgt_v = target_->get_ref_mesh().get_verts();
-	//ROWMAT(T) tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
-	////ROWMAT(T) /*tgt_vn*/(2,3);
-
-	//for (int i = 0; i < cloud->size(); i++) {
-	//	(*cloud)[i].x = tgt_v.row(i)[0];
-	//	(*cloud)[i].y = tgt_v.row(i)[1];
-	//	(*cloud)[i].z = tgt_v.row(i)[2];
-	//}
-	//pcl::KdTreeFLANN<pcl::PointXYZ> tgt_kdtree_;
-	//tgt_kdtree_.setInputCloud(cloud);
 	
 	ROWMAT(T) tgt_v = target_->get_ref_mesh().get_verts();
 	ROWMAT(T) tgt_vn = target_->get_ref_mesh().calc_vertex_normal_vector();
 
 	ROWMAT(T) src_v = src_copy_.get_verts();
 	ROWMAT(T) src_vn = src_copy_.calc_vertex_normal_vector();
-	PRETTY_LOG_BEGIN("produce_cloest")
-	std::cout << src_vn.size() << std::endl;
-	std::cout << src_vn.size() << std::endl;
-	PRETTY_LOG_END("produce_cloest")
-   	//cloud->resize(source_->get_v_size());
+
 	const int default_k = 200;
 	const int K = std::min(default_k, target_->get_v_size());
 	
@@ -331,8 +288,6 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 				closest[i] = *idx_iter; // (src_idx, tgt_idx)
 		}
 	}
-	//log_msg(closest)
-		// now make G matrix.
 
 
 		//remove invalid_closest_ points
@@ -340,7 +295,6 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 			[&](int idx) {
 				return idx != -1;
 			});
-		//std::for_each(closest.begin(), closest.end(), [&G_rows](std::vector<int>& s) {G_rows += s.size(); });
 		
 		Sparse<T> G(3 * G_rows, 3 * col_size);
 		G.setZero();
@@ -352,7 +306,6 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 		int row_idx = 0;
 		log_dense(tgt_v)
 		for (int i = 0; i < closest.size(); i++) {
-			//for (int j = 0; j < closest[i].size(); j++) {
 			if (closest[i] == -1)
 				continue;
 			G.coeffRef(0 * G_rows + row_idx, 0 * col_size + i) = 1.0;
@@ -366,7 +319,6 @@ A_and_b<T>  DeformationTransfer<T>::produce_closest()
 			log_dense(b)
 
 			row_idx++;
-			//}
 		}
 
 	return std::make_pair(G, b);
@@ -416,20 +368,22 @@ void DeformationTransfer<T>::process_correspondence()
 	//add marker(hard constraint.. it means remove related columns from matrix A.)
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = add_marker_constraint_to_matrix(S_terms);
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = add_marker_constraint_to_matrix(I_terms);
-	//std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = S_terms;
-	//std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = I_terms;
 
-
-
-
+	PRETTY_LOG_BEGIN("save", "picking")
+	src_copy_.save_file("after2_.obj");
+	PRETTY_LOG_END("save", "picking")
 	src_copy_.save_file("before_.obj");
 	ROWMAT(T) first_estimated_x = phase1(reduced_S_terms, reduced_I_terms); // we use this x coooooooooord to find valid closest points~!
 	src_copy_.update_v(recover_marker_points_to_result(first_estimated_x));
+	PRETTY_LOG_BEGIN("save", "picking")
 	src_copy_.save_file("after2_.obj");
+	PRETTY_LOG_END("save", "picking")
 	ROWMAT(T) raw_x = phase2(reduced_S_terms, reduced_I_terms); // yeah-a now phase 2. 
-	ROWMAT(T) new_x = recover_marker_points_to_result(raw_x); // remove normal vectors and 
-	src_copy_.update_v(recover_marker_points_to_result(first_estimated_x));
+	//ROWMAT(T) new_x = recover_marker_points_to_result(raw_x); // remove normal vectors and 
+	src_copy_.update_v(recover_marker_points_to_result(raw_x));
+	PRETTY_LOG_BEGIN("save", "picking")
 	src_copy_.save_file("final.obj");
+	PRETTY_LOG_END("save", "picking")
 															  // attach removed marker from add_marker_constraint_to_matrix() term. :p
 		
 
@@ -498,25 +452,14 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 template <typename T>
 ROWMAT(T) DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 {
-	//Sparse<T> new_A = ws_ * S_pair.first + wi_ * I_pair.first;
-	////Sparse<T> new_A = S_pair.first;
-	//Sparse<T> AtA =  new_A.transpose().eval()* new_A;
-	//AtA.makeCompressed();
-
-	//
-	//ROWMAT(T) new_b = ws_ * S_pair.second + wi_ * I_pair.second;
-	////ROWMAT(T) new_b = S_pair.second;
-	//
-	Sparse<T> new_A; //
+	Sparse<T> new_A; 
 	ROWMAT(T) new_b;
-
 
 	////Sparse<T> A = ws * s_term + wi * i_term + wc * c_term;
 	concat_v_sparse<T>(new_A, ws_ * S_pair.first, wi_ * I_pair.first);
 	concat_v_dense<T>(new_b, ws_ * S_pair.second, wi_ * I_pair.second);
 
 	Sparse<T> AtA =  new_A.transpose().eval()* new_A;
-	
 	
 	Eigen::Matrix<T, -1, -1> new_col_b = new_A.transpose() * new_b;
 	Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
@@ -525,10 +468,6 @@ ROWMAT(T) DeformationTransfer<T>::phase1(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 	Eigen::Matrix<T, -1,-1> cx = slvr.solve(new_col_b);
 	Eigen::Map<Eigen::Matrix<T, -1, -1>> tmp_map(cx.data(), static_cast<int>(cx.size() / 3), 3);
 	ROWMAT(T) reval = tmp_map;
-	
-
-
-
 
 	return reval;
 }
@@ -587,16 +526,11 @@ ROWMAT(T) DeformationTransfer<T>::phase2(A_and_b<T>& S_pair, A_and_b<T>& I_pair)
 	for (int i = 0; i < wc_.size(); i++) {
 		A_and_b<T> c_pair = produce_closest();
 		A_and_b<T> reduced_c_pair = add_marker_constraint_to_matrix(c_pair);
-		//A_and_b<T> reduced_c_pair = c_pair;
 
 		Sparse<T> total_A;
 		ROWMAT(T) new_b;
 		concat_v_sparse<T>(total_A, cons_A, wc_[i] * reduced_c_pair.first);
 		concat_v_dense<T>(new_b, cons_b, wc_[i] * reduced_c_pair.second);
-		//Sparse<T> total_A  = reduced_c_pair.first;
-		std::cout << total_A.rows() << ", " << total_A.cols() << std::endl;
-		log_sparse(total_A)
-		//ROWMAT(T) new_b = reduced_c_pair.second;
 
 		Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
 		slvr.compute(total_A.transpose().eval() * total_A);

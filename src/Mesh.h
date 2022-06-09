@@ -168,16 +168,6 @@ public:
 
 			}
 
-		// test foreach
-		//float test = 0;
-		//std::vector as = { 1,2,3,4,5,6,7,8,9,10 };
-		//auto ssize = as.size();
-		////auto f = [&test, ssize](int s) { std::cout << (float)s/ssize; };
-		//auto f = [&test, ssize](int s) { test += s / (float)ssize; };
-		//std::for_each(as.begin(), as.end(),
-		//	f
-		//);
-		//std::cout << test;
 		}
 		ROWMAT(T) t = V.block(fn_size_, 0, v_size_, 3); //hard copy...
 
