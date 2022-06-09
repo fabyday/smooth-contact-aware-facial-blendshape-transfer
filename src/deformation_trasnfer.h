@@ -9,6 +9,7 @@
 #define WS_DEFAULT 1
 #define WI_DEFAULT 0.001
 #define WC_DEFAULT {0, 10, 50, 250, 1000, 2000, 3000, 5000}
+
 template <typename T> 
 using A_and_b =  std::pair< Sparse<T>, ROWMAT(T) >;
 
@@ -54,11 +55,12 @@ private:
 
 	Mesh<T> src_copy_; //for preprocessing
 
+	pcl::KdTreeFLANN<pcl::PointXYZ> tgt_kdtree_;
 
 	//coeff
-	float ws_;
-	float wi_;
-	std::vector<float> wc_;
+	T ws_;
+	T wi_;
+	std::vector<T> wc_;
 
 	bool compile_flag_;
 

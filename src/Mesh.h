@@ -4,6 +4,7 @@
 #include <igl/write_triangle_mesh.h>
 #include "Primitives.h"
 #include <algorithm>
+#include <cmath>
 template<typename T>
 class Mesh { //lazy evaluation.
 public:
@@ -17,13 +18,16 @@ private:
 
 	RowmatI F;
 
+	enum DIRTY_FLAG {D_VERTEX_NORMAL = BIT(0), D_FACE_NORMAL = BIT(1)};
+
+
 	int v_size_;
 	int f_size_;
 	int fn_size_;//offset, size
 	int vn_size_;//offset, size
 
 	bool dirty_flag_; // check vertex info chnaged.
-	
+	//_8BIT_FALG dirty_flag;
 	
 	Face2Faces f2f_;
 	Edge2Faces e2f_;
@@ -31,13 +35,28 @@ private:
 
 public:
 	Mesh() {
-
 	}
 	explicit public Mesh(const Mesh& mesh):
 		V{ mesh.V }, F{ mesh.F }, dirty_flag_(mesh.dirty_flag_),
 		v_size_(mesh.v_size_), f_size_(mesh.f_size_), fn_size_(mesh.fn_size_), vn_size_(mesh.vn_size_),
 		f2f_(mesh.f2f_), e2f_(mesh.e2f_), v2f_(mesh.v2f_)
 	{}
+
+	Mesh& operator=(const Mesh& mesh){
+		V = mesh.V;
+		F = mesh.F; 
+		dirty_flag_ = true;
+		v_size_ = mesh.v_size_; 
+		f_size_ = mesh.f_size_; 
+		fn_size_ = mesh.fn_size_; 
+		vn_size_ = mesh.vn_size_;
+		f2f_ = mesh.f2f_;
+		e2f_ = mesh.e2f_;  
+		v2f_ = mesh.v2f_;
+
+		return *this;
+
+	}
 
 	inline void load_from_file(string name) {
 		igl::read_triangle_mesh(name, V, F);
@@ -52,8 +71,6 @@ public:
 		f_size_ = this->F.rows();
 		init_geo_struct();
 	}
-
-
 	inline void save_file(string name) {
 		igl::write_triangle_mesh(name, V.block(0,0, v_size_, 3), F.block(0,0, f_size_, 3));
 	}
@@ -125,7 +142,9 @@ public:
 		
 		calc_face_normal_vector();// face normal
 		//int size = v_size_ + f_size_ + v_size_;
-		if(dirty_flag){
+		//if(dirty_flag){
+		if(true){
+			dirty_flag_ = false;
 			int size = fn_size_ + v_size_;
 			vn_size_ = size;
 			V.conservativeResize(vn_size_, 3);
@@ -137,10 +156,16 @@ public:
 				ROWMAT(T) v_norm_vec = ROWMAT(T)::Zero(1, 3);
 				const int neighbor_f_size = v2f_.vertidx_[i].size();
 				std::for_each(v2f_.vertidx_[i].begin(), v2f_.vertidx_[i].end(),
-					[neighbor_f_size, &v_norm_vec, &VFN](int s) { v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; }
+					[i, neighbor_f_size, &v_norm_vec, &VFN](int s) { 
+						//v_norm_vec.row(0) += VFN.row(s)/ neighbor_f_size ; 
+						v_norm_vec.row(0) += VFN.row(s); 
+					}
 				);
+				v_norm_vec /= neighbor_f_size;
 				V.row(i + fn_size_) = v_norm_vec;
 				V.row(i + fn_size_).normalize();
+
+
 			}
 
 		// test foreach
@@ -178,8 +203,9 @@ public:
 
 
 	inline ROWMAT(T) calc_face_normal_vector() {
-		if (dirty_flag_) {
-			dirty_flag_ = true;
+		//if (dirty_flag_) {
+		if (true) {
+			dirty_flag_ = false;
 			using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
 			fn_size_ = v_size_ + f_size_;
 			F.conservativeResize(f_size_, 4);
@@ -190,16 +216,18 @@ public:
 				int v1 = F.row(i)[0], v2 = F.row(i)[1], v3 = F.row(i)[2];
 				vec3 e1 = V.row(v2) - V.row(v1);
 				vec3 e2 = V.row(v3) - V.row(v1);
+				e1.normalize();
+				e2.normalize();
 				vec3 e3 = e1.cross(e2);
-				e3.normalize();
+			//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+				e3.normalize(); ///
+				// TODO
+				//e3 /= std::sqrt(e3.norm());
+			//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 				V.row(v_size_ + i) = e3;
+
 			}
 		}
-		PRETTY_LOG_BEGIN("fn", "vn")
-		log_dense(V.block(v_size_, 0, 20, 3))
-		log_msg("===")
-		log_dense(V.block(0, 0, 20, 3))
-		PRETTY_LOG_END("fn", "vn")
 		return V.block(v_size_, 0, f_size_, 3);
 	}
 

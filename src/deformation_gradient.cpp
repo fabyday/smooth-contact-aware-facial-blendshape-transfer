@@ -117,10 +117,8 @@ template<typename T, int S>
 		//block = block.inverse().eval; // T^T = V^T^-1 * V'^T
 		//mat = block; // assign block
 		mat = block.inverse(); // same as above comments.
-
 		idx(0, 0) = v1_idx; idx(1, 0) = v2_idx; idx(2, 0) = v3_idx;	idx(3, 0) = v4_idx; // assign idx
 		data[i].tri_num_ = i; // assign face idx
-
 
 
 		PRETTY_LOG_BEGIN("DG_STATE")

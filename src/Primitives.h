@@ -7,6 +7,18 @@
 
 #include <Eigen/Sparse>
 
+
+
+#define _8BIT_FLAG char
+#define BIT(N) 1<<N
+#define BIT_ON(var, flag) var|=flag;
+#define BIT_OFF(var, flag) var&=~flag;
+
+
+
+
+
+
 template <typename T>
 using Sparse = Eigen::SparseMatrix<T>;
 

@@ -1,4 +1,7 @@
 #define LOG_CATEGORY "vn"
+#define DTYPE float
+
+
 #include <iostream>
 #include <deformation_gradient.h>
 #include <dg_solver.h>
@@ -29,16 +32,16 @@ get_marker(YAML::Node& root_node, std::vector<std::tuple<int,int>>& result) {
 
 }
 
-void get_meshes(YAML::Node& root_node, std::vector<Mesh<float>>& mesh_list, std::string tag) {
+void get_meshes(YAML::Node& root_node, std::vector<Mesh<DTYPE>>& mesh_list, std::string tag) {
 	
 	//load src
 	std::string root_path = RES"/lowpoly/";
-	Mesh<float> ref;
+	Mesh<DTYPE> ref;
 	ref.load_from_file(root_path+root_node[tag]["reference"].as<std::string>());
 	mesh_list.push_back(ref);
 
 	for (auto iter = root_node[tag]["poses"].begin(); iter != root_node[tag]["poses"].end(); iter++) {
-		Mesh<float> tmp_mesh;
+		Mesh<DTYPE> tmp_mesh;
 		tmp_mesh.load_from_file(root_path+iter->as<std::string>());
 		mesh_list.push_back(tmp_mesh);
 	}
@@ -63,9 +66,9 @@ void printm(const std::vector<std::tuple<int,int>>& s) {
 
 int 
 main() {
-	DGSolver<float> slvr;
+	DGSolver<DTYPE> slvr;
 	
-	std::vector<Mesh<float>> src_meshes, tgt_meshes; // 0 is reference.
+	std::vector<Mesh<DTYPE>> src_meshes, tgt_meshes; // 0 is reference.
 	std::vector<std::tuple<int, int>> corr_marker;
 	//fs::path src_dir(RES"lowpoly/""cat"), tgt_dir(RES"lowpoly/""dog");
 
@@ -82,21 +85,21 @@ main() {
 	
 	
 
-	DeformationGradient<float, 4> src_dg4, tgt_dg4; // for deformation transfer
+	DeformationGradient<DTYPE, 4> src_dg4, tgt_dg4; // for deformation transfer
 	
 																			// [mesh0_ref | mesh_tgt(1) ... mesh_tgt(n)]
 	src_dg4.add_reference(src_meshes[0]);
-	std::vector<Mesh<float>> src_tgt(src_meshes.begin() + 1, src_meshes.end());
+	std::vector<Mesh<DTYPE>> src_tgt(src_meshes.begin() + 1, src_meshes.end());
 	src_dg4.add_targets(src_tgt);
 	
 	tgt_dg4.add_reference(tgt_meshes[0]);
-	std::vector<Mesh<float>> tgt_tgt(tgt_meshes.begin() + 1, tgt_meshes.end());
+	std::vector<Mesh<DTYPE>> tgt_tgt(tgt_meshes.begin() + 1, tgt_meshes.end());
 	tgt_dg4.add_targets(tgt_tgt);
 	
 	
 
-	slvr.add_deformation_gradient(DGSolver<float>::PURPOSE::SOURCE, src_dg4);
-	slvr.add_deformation_gradient(DGSolver<float>::PURPOSE::TARGET, tgt_dg4);
+	slvr.add_deformation_gradient(DGSolver<DTYPE>::PURPOSE::SOURCE, src_dg4);
+	slvr.add_deformation_gradient(DGSolver<DTYPE>::PURPOSE::TARGET, tgt_dg4);
 
 
 	slvr.add_marker_index(corr_marker);
