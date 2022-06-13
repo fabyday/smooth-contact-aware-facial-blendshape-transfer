@@ -26,8 +26,8 @@ private:
 	int fn_size_;//offset, size
 	int vn_size_;//offset, size
 
-	bool dirty_flag_; // check vertex info chnaged.
-	//_8BIT_FALG dirty_flag;
+	//bool dirty_flag_; // check vertex info chnaged.
+	_8BIT_FLAG dirty_flag_;
 	
 	Face2Faces f2f_;
 	Edge2Faces e2f_;
@@ -35,6 +35,7 @@ private:
 
 public:
 	Mesh() {
+		dirty_flag_ = 0;
 	}
 	explicit public Mesh(const Mesh& mesh):
 		V{ mesh.V }, F{ mesh.F }, dirty_flag_(mesh.dirty_flag_),
@@ -45,7 +46,6 @@ public:
 	Mesh& operator=(const Mesh& mesh){
 		V = mesh.V;
 		F = mesh.F; 
-		dirty_flag_ = true;
 		v_size_ = mesh.v_size_; 
 		f_size_ = mesh.f_size_; 
 		fn_size_ = mesh.fn_size_; 
@@ -53,7 +53,7 @@ public:
 		f2f_ = mesh.f2f_;
 		e2f_ = mesh.e2f_;  
 		v2f_ = mesh.v2f_;
-
+		dirty_flag_ = mesh.dirty_flag_;
 		return *this;
 
 	}
@@ -62,6 +62,8 @@ public:
 		igl::read_triangle_mesh(name, V, F);
 		v_size_ = V.rows();
 		f_size_ = F.rows();
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
 		init_geo_struct();
 	}
 	inline void set_mesh(ROWMAT(T)& V, RowmatI& F) {
@@ -138,13 +140,12 @@ public:
 		return f_size_;
 	}
 	inline ROWMAT(T) calc_vertex_normal_vector() {
-		bool dirty_flag = dirty_flag_;
 		
 		calc_face_normal_vector();// face normal
 		//int size = v_size_ + f_size_ + v_size_;
 		//if(dirty_flag){
-		if(true){
-			dirty_flag_ = false;
+		if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL)){
+			BIT_OFF(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
 			int size = fn_size_ + v_size_;
 			vn_size_ = size;
 			V.conservativeResize(vn_size_, 3);
@@ -186,16 +187,18 @@ public:
 
 
 	void update_v(const ROWMAT(T)& verts){
-		dirty_flag_ = true;
 		assert(verts.rows() == v_size_ && "verts_size and v_size_ is diff");
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
 		V.block(0, 0, v_size_, 3) = verts;
 	}
 
 
 	inline ROWMAT(T) calc_face_normal_vector() {
 		//if (dirty_flag_) {
-		if (true) {
-			dirty_flag_ = false;
+		if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL)){
+		//if (true) {
+			BIT_OFF(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
 			using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
 			fn_size_ = v_size_ + f_size_;
 			F.conservativeResize(f_size_, 4);

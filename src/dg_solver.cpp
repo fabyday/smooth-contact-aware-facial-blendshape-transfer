@@ -11,6 +11,7 @@ template<typename T>
 void
 DGSolver<T>::solve(){
 	dg4_src_tgt[PURPOSE::SOURCE]->compile();
+	dg4_src_tgt[PURPOSE::TARGET]->compile();
 	dtrans_.add_deformation_gradient_data(*dg4_src_tgt[PURPOSE::SOURCE], *dg4_src_tgt[PURPOSE::TARGET]);
 	dtrans_.add_marker(marker_idx_);
 	dtrans_.compile();

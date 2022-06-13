@@ -51,24 +51,14 @@ void DeformationTransfer<T>::process_neighbor()
 //}
 
 template <typename T>
-void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx) {
+void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx, int axis_size = 3) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
-	const int row_size = static_cast<int>(A.rows() / 3);
-	const int col_size = static_cast<int>(A.cols() / 3);
-	//const int tri_num = tdg.tri_num_;
-	//std::cout << "tri num" << tri_num << std::endl;
-	//std::cout << "ind :" << tdg.get_ind().transpose() << std::endl;
-	for (int ax = 0; ax < 3; ax++) {
+	assert(A.rows() % axis_size == 0 && A.cols() % axis_size == 0);
+	const int row_size = static_cast<int>(A.rows() / axis_size);
+	const int col_size = static_cast<int>(A.cols() / axis_size);
+	for (int ax = 0; ax < axis_size; ax++) {
 		for (int i = 0; i < 3; i++) {
-			//std::cout << ax << std::endl;
-			//std::cout << "("
-			//	<< row_size * ax + tri_num * 3 + i
-			//	<< ","
-			//	<< col_size * ax + tdg.get_ind()(0, 0)
-			//	<< ") / "
-			//	<< "("
-			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) += (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) += (invV_adj(i, 0));
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) += (invV_adj(i, 1));
@@ -89,23 +79,15 @@ void add_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_id
 	
 }
 template <typename T>
-void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx) {
+void sub_sparse(Sparse<T>& A, TriangleDeformationGradient<T, 4>& tdg, int tri_idx, int axis_size = 3) {
 	Eigen::Vector4i idx = tdg.get_ind();
 	ROWMAT(T) invV_adj = tdg.get_mat();
-	const int row_size = static_cast<int>(A.rows() / 3);
-	const int col_size = static_cast<int>(A.cols() / 3);
-	//const int tri_num = tdg.tri_num_;
-	//std::cout << "tri num" <<  tri_num<<std::endl; 
-	for (int ax = 0; ax < 3; ax++) {
+	assert(A.rows() % axis_size == 0 && A.cols() % axis_size == 0);
+
+	const int row_size = static_cast<int>(A.rows() / axis_size);
+	const int col_size = static_cast<int>(A.cols() / axis_size);
+	for (int ax = 0; ax < axis_size; ax++) {
 		for (int i = 0; i < 3; i++) {
-			//std::cout << ax << std::endl;
-			//std::cout << "(" 
-			//	<< row_size * ax + tri_num * 3 + i 
-			//	<< "," 
-			//	<< col_size * ax + tdg.get_ind()(0, 0) 
-			//	<< ") / " 
-			//	<< "(" 
-			//	<< A.rows() << ", " << A.cols() << ")" << std::endl;
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(0, 0)) -= (-invV_adj(i, 0) - invV_adj(i, 1) - invV_adj(i, 2));
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(1, 0)) -= (invV_adj(i, 0));
 			A.coeffRef(row_size * ax + tri_idx * 3 + i, col_size * ax + tdg.get_ind()(2, 0)) -= (invV_adj(i, 1));
@@ -369,82 +351,128 @@ void DeformationTransfer<T>::process_correspondence()
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_S_terms = add_marker_constraint_to_matrix(S_terms);
 	std::pair<Sparse<T>, ROWMAT(T)> reduced_I_terms = add_marker_constraint_to_matrix(I_terms);
 
-	PRETTY_LOG_BEGIN("save", "picking")
-	src_copy_.save_file("after2_.obj");
-	PRETTY_LOG_END("save", "picking")
-	src_copy_.save_file("before_.obj");
 	ROWMAT(T) first_estimated_x = phase1(reduced_S_terms, reduced_I_terms); // we use this x coooooooooord to find valid closest points~!
 	src_copy_.update_v(recover_marker_points_to_result(first_estimated_x));
-	PRETTY_LOG_BEGIN("save", "picking")
-	src_copy_.save_file("after2_.obj");
-	PRETTY_LOG_END("save", "picking")
 	ROWMAT(T) raw_x = phase2(reduced_S_terms, reduced_I_terms); // yeah-a now phase 2. 
-	//ROWMAT(T) new_x = recover_marker_points_to_result(raw_x); // remove normal vectors and 
-	src_copy_.update_v(recover_marker_points_to_result(raw_x));
-	PRETTY_LOG_BEGIN("save", "picking")
-	src_copy_.save_file("final.obj");
-	PRETTY_LOG_END("save", "picking")
-															  // attach removed marker from add_marker_constraint_to_matrix() term. :p
-		
+	src_copy_.update_v(recover_marker_points_to_result(raw_x));	// attach removed marker from add_marker_constraint_to_matrix() term. :p
 
 	make_triangle_correspondence();  // finnally make corrs!! foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo!!!!!!!!!!
 }
 
 template<typename T>
-void DeformationTransfer<T>::make_triangle_correspondence()
-{
-	const int src_f_size = source_->get_ref_mesh().face_size();
-	ROWMAT(T) src_tri_centroid = source_->get_ref_mesh().get_centroid_tri();
-	ROWMAT(T) src_vn = source_->get_ref_mesh().calc_face_normal_vector(); //// face normal
-
-
-
-	const int tgt_f_size = target_->get_ref_mesh().face_size();
-	ROWMAT(T) tgt_tri_centroid = target_->get_ref_mesh().get_centroid_tri();
-	ROWMAT(T) tgt_vn = target_->get_ref_mesh().calc_face_normal_vector(); // face normal
-
-	corr_tri_tgt_from_src.resize(src_f_size);
-
-	//setup kdtree
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-	cloud->resize(tgt_f_size);
-	for (int i = 0; i < cloud->size(); i++) {
-		(*cloud)[i].x = tgt_tri_centroid.row(i)[0];
-		(*cloud)[i].y = tgt_tri_centroid.row(i)[1];
-		(*cloud)[i].z = tgt_tri_centroid.row(i)[2];
-	}
-
-	pcl::KdTreeFLANN<pcl::PointXYZ> tgt_kdtree_;
-	tgt_kdtree_.setInputCloud(cloud);
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr query_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-	cloud->resize(source_->get_v_size());
-
-	const int default_k = 200;
-	const int K = std::min(default_k, target_->get_v_size());
-	//search nearest point-map
+void 
+get_closest_triangle(std::vector<std::vector<int>>& result ,
+					const ROWMAT(T)& src_fn, const ROWMAT(T)& tgt_fn,
+					const ROWMAT(T)& src_fv, const ROWMAT(T)& tgt_fv,
+					T max_angle, T radius) {
 	
-	for (int i = 0; i < src_f_size; i++) {
+	const int src_fv_size = src_fv.rows();
+
+	const int tgt_fv_size = tgt_fv.rows();
+
+	std::vector<int> closest;
+	closest.resize(tgt_fv_size);
+	std::fill(closest.begin(), closest.end(), -1);
+
+	pcl::KdTreeFLANN<pcl::PointXYZ> src_kdtree;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+	cloud->resize(src_fv_size);
+
+
+	for (int i = 0; i < cloud->size(); i++) {
+		(*cloud)[i].x = src_fv.row(i)[0];
+		(*cloud)[i].y = src_fv.row(i)[1];
+		(*cloud)[i].z = src_fv.row(i)[2];
+	}
+	src_kdtree.setInputCloud(cloud);
+
+
+	const int default_k = 500;
+	const int K = std::min(default_k, src_fv_size);
+
+
+	//search nearest point-map
+	for (int i = 0; i < tgt_fv_size; i++) {
 		std::vector<int> knn_idx(K);
 		std::vector<float> squared_distances(K);
 		pcl::PointXYZ xyz;
 
-		xyz.x = src_tri_centroid.row(i)[0]; 
-		xyz.y = src_tri_centroid.row(i)[1]; 
-		xyz.z = src_tri_centroid.row(i)[2];
-		float angle;
-		float max_angle = 90 * M_PI / 180; // to radian
-		if (tgt_kdtree_.nearestKSearch(xyz, K, knn_idx, squared_distances) > 0) {
-			for (int j = 0; j < knn_idx.size(); j++) {
-				angle = std::acos(tgt_vn.row(knn_idx[j]).dot(src_vn.row(i)));
-				if (std::abs(angle) < max_angle) {
-					corr_tri_tgt_from_src[i].emplace_back(knn_idx[j]); // (src_idx, tgt_idx)
-				}
-			}
+
+		xyz.x = tgt_fv.row(i)[0]; xyz.y = tgt_fv.row(i)[1]; xyz.z = tgt_fv.row(i)[2];
+
+		if (src_kdtree.nearestKSearch(xyz, K, knn_idx, squared_distances) > 0) {
+			//find nearest point which has less 8824 than 90 degree.
+			auto idx_iter = std::find_if(knn_idx.begin(), knn_idx.end(), [&](int j) {
+				float angle = std::acos(src_fn.row(j).dot(tgt_fn.row(i)));
+				return (std::abs(angle) < max_angle);
+				});
+
+			if (idx_iter != knn_idx.end())
+				closest[i] = *idx_iter; // (tgt_idx,src_idx)
 		}
 	}
 
+	result.resize(src_fv_size);
+	for (int tgt_tri_idx = 0; tgt_tri_idx < closest.size(); tgt_tri_idx++) {
+		/*assert(closest[tgt_tri_idx] != -1)*/
+		const int src_tri_idx = closest[tgt_tri_idx];
+		result[src_tri_idx].push_back(tgt_tri_idx);
+	}
 
+}
+
+float max_triangle_length() {
+	return 10;
+}
+
+
+template<typename T>
+void DeformationTransfer<T>::make_triangle_correspondence()
+{
+	ROWMAT(int)& face = src_copy_.get_face();
+	ROWMAT(T) verts = src_copy_.get_centroid_tri();
+
+	const int src_fv_size = src_copy_.face_size();
+
+	const int tgt_fv_size = target_->get_ref_mesh().face_size();
+
+	std::vector<int> closest;
+	closest.resize(tgt_fv_size);
+	std::fill(closest.begin(), closest.end(), -1);
+
+	ROWMAT(T) tgt_fv = target_->get_ref_mesh().get_centroid_tri();
+	ROWMAT(T) tgt_fn = target_->get_ref_mesh().calc_face_normal_vector();
+
+	ROWMAT(T) src_fv = src_copy_.get_centroid_tri();// tri centroid point.
+	ROWMAT(T) src_fn = src_copy_.calc_face_normal_vector(); // tri normal vector
+
+	std::vector<std::vector<int>> src_result, tgt_result;
+	src_result.resize(src_fv.size()); tgt_result.resize(tgt_fv.size());
+	
+	const float max_angle = 90 * M_PI / 180; // to radian
+	const float radius = 90 * M_PI / 180; // to radian
+
+	get_closest_triangle<T>(src_result, src_fn, tgt_fn, src_fv, tgt_fv, max_angle, radius);
+	get_closest_triangle<T>(tgt_result, tgt_fn, src_fn, tgt_fv, src_fv, max_angle, radius);
+	
+	int idx = 0;
+	std::set<std::pair<int, int>> tmp_pair;
+	std::for_each(src_result.begin(), src_result.end(), [&idx, &tmp_pair](auto x) {
+		for (auto tgt_id = x.begin(); tgt_id != x.end(); tgt_id++)
+			tmp_pair.emplace(idx, *tgt_id );
+		idx++;
+		});
+
+	idx = 0;
+	std::for_each(tgt_result.begin(), tgt_result.end(), [&idx, &tmp_pair](auto x) {
+		for (auto tgt_id = x.begin(); tgt_id != x.end(); tgt_id++)
+			tmp_pair.emplace(*tgt_id, idx);
+		idx++;
+		});
+
+	for (int tgt_tri_idx = 0; tgt_tri_idx < closest.size(); tgt_tri_idx++) {
+		corr_tri_tgt_from_src.assign(tmp_pair.begin(), tmp_pair.end());
+	}
 }
 
 
@@ -661,14 +689,60 @@ void DeformationTransfer<T>::compile(T ws, T wi, std::vector<T>& wc)
 }
 
 template <typename T>
-void DeformationTransfer<T>::solve()
-{
+void DeformationTransfer<T>::solve() {
 	if (compile_flag_)
 		compile();
 
-	//phase1();
-	//for (int i = 0; i < wc_.size(); i++) {
-	//	phase1();
-	//	phase2();
-	//}
+	const int tgt_v_size = target_->get_ref_mesh().verts_size();
+	const int tgt_f_size = target_->get_ref_mesh().face_size();
+	const int corr_tri_size = corr_tri_tgt_from_src.size();
+	const int constraint_size = tgt_v_size;
+	const int G_rows = 3 * (corr_tri_size + constraint_size);
+	
+	Sparse<T> G(G_rows, tgt_v_size);
+	Eigen::Matrix<T, -1, -1> b(G_rows, 3);
+
+	for (int ss = 0; ss < source_->size(); ss++) { // defored source size.
+		int tri_idx = 0;
+		// build S - T 
+		for (int i= 0; i < corr_tri_size; i++) {
+			const int src_idx = corr_tri_tgt_from_src[i].first; // target and source inv T per triangle idx.
+			const int tgt_idx = corr_tri_tgt_from_src[i].second; // target and source inv T per triangle idx.
+			TriangleDeformationGradient<T, SIZE>& tdg_i = target_->get_inv_matrix(tgt_idx);
+			ROWMAT(T)& S_mat = source_->get_inv_matrix(src_idx) * source_->get_deformation_gradient(ss, src_idx);
+			b.block<3, 3>(3*tri_idx, 0) = S_mat;
+			add_sparse<T>(G, tdg_i, tri_idx, 1);
+			tri_idx++;
+		}
+
+		// add constraints
+		// T_j*v_i + d_j = T_k*v_i + d_k
+		vert2Faces& v2f = source_->get_ref_mesh().get_v2f(); 
+		for (int i = 0; i < v2f.vertidx_.size(); i++) {
+			const int size = v2f.vertidx_[i].size();
+			for (int j = 0; j < size; j++) {
+				const int n_f_idx_prev = v2f.vertidx_[i][j]; // neighbor_face_idx1.
+				const int n_f_idx_next = v2f.vertidx_[i][(j+1)%size]; // neighbor_face_idx2.
+				for (int f = 0; f < tgt_f_size; i++) {
+					TriangleDeformationGradient<T, SIZE>& tdg_i_prev = target_->get_inv_matrix(n_f_idx_prev);
+					TriangleDeformationGradient<T, SIZE>& tdg_i_next = target_->get_inv_matrix(n_f_idx_next);
+					add_sparse<T>(G, tdg_i_prev, tri_idx, 1);
+					sub_sparse<T>(G, tdg_i_next, tri_idx, 1);
+					tri_idx++;
+				}
+			}
+		}
+		Sparse<T> AtA = G.transpose().eval() * G;
+		Eigen::SparseLU<Sparse<T>, Eigen::COLAMDOrdering<int>> slvr;
+		slvr.compute(G);
+		Eigen::Matrix<T,-1,-1> cx = slvr.solve(G.transpose() * b);
+		Eigen::Map<Eigen::Matrix<T, -1, -1>> tmp_map(cx.data(), static_cast<int>(cx.size() / 3), 3);
+		ROWMAT(T) reval = tmp_map;
+
+		Mesh<T> new_mesh(target_->get_ref_mesh());
+		new_mesh.update_v(reval);
+		new_mesh.save_file("transfered_" + std::to_string(ss));
+				
+
+	}
 }

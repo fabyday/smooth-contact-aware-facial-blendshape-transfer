@@ -46,7 +46,7 @@ struct TriangleDeformationGradient {
 	static_assert(SIZE ==  3 || SIZE == 4);
 	using VectorSi = Eigen::Matrix < int, 4, 1>;
 
-	std::array<T, 3*(SIZE -1)> dg_; // v2 - v4 , v3-v1, v4-v1
+	std::array<T, 3*(SIZE -1)> dg_; // v2 - v1, v3-v1, v4-v1
 	std::array<int, SIZE> ind_; // v1, v2, v3, v4 vertex index
 	int tri_num_;
 	Eigen::Map<ROWMAT(T)> get_mat() {		
@@ -56,7 +56,24 @@ struct TriangleDeformationGradient {
 		return Eigen::Map< VectorSi>(ind_.data());
 	}
 
+	//ROWMAT(T) operator*(Mesh<T>& mesh) {
+	//	ROWMAT(T)& verts = mesh.get_verts();
+	//	ROWMAT(T) v3x3;
+	//	const auto v1 = verts.row(ind_[0]);
+	//	for (int i = 1; ind_.size() i++) {
+	//		v4x3.row(i) = verts.row(ind_[i]) - v1;
+	//	}
+	//	return get_mat() * v4x3.transpose();
+	//}
+
+	ROWMAT(T) operator*(const TriangleDeformationGradient<T,SIZE>& other) {
+		
+		//return get_mat()* other.get_mat().inverse();
+		return get_mat() * const_cast<TriangleDeformationGradient<T, SIZE>*>(&other)->get_mat().inverse();
+	}
+
 };  
+
 
 template<typename T, int SIZE =4>
 struct DeformationGradientCollection { // iterator.....?
@@ -113,6 +130,11 @@ public :
 			throw std::runtime_error("index error. index must be singed.");
 
 		return deformation_gradients_[to_ref_target_idx + 1][face_idx];
+	}
+
+
+	inline const int size() {
+		return deformation_gradients_.size() - 1; // remove reference
 	}
 
 	inline const int get_v_size() { return v_size_; };

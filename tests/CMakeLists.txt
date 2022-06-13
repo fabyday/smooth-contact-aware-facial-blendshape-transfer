@@ -12,3 +12,5 @@ add_executable(test2 small_example.cpp ../eigen.natvis)
 #target_compile_definitions(test2 PUBLIC "-DRES=\"${resource_path}\"")
 
 add_executable(closest_test1 closest_test.cpp ../eigen.natvis)
+
+add_executable(bitflag_test bit_flag_test.cpp)

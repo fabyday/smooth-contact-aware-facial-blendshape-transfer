@@ -50,7 +50,7 @@ private:
 	DeformationGradient<T, SIZE>* target_;
 
 	//triangle correspondence .. first optimizing problem.
-	std::vector<std::vector<int>> corr_tri_tgt_from_src; // corr_tri_tgt_from_src[src_tri_num] = {tgt_tri_num1, ... tgt_tri_num_n}
+	std::vector<std::pair<int, int>> corr_tri_tgt_from_src; // corr_tri_tgt_from_src[src_tri_num] = {tgt_tri_num1, ... tgt_tri_num_n}
 
 
 	Mesh<T> src_copy_; //for preprocessing

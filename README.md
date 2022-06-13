@@ -41,6 +41,7 @@ PRETTY_LOG_BEGIN(msg, category), PRETTY_LOG_END(msg, category), log_sparse(), lo
 #include <Eigen/Sparse>
 #include <Eigen/Core>
 #include "pretty_log.h"
+
 // if you disable it. it doesn't write or execute anything 
 // between PRETTY_LOG_BEGIN and PRETTY_LOG_END
 #define category "category_name" 
