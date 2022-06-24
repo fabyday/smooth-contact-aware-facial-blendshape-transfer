@@ -36,41 +36,58 @@ private:
 public:
 	Mesh() {
 		dirty_flag_ = 0;
+		v_size_ = -1;
+		f_size_ = - 1;
+		fn_size_ = -1;
+		vn_size_ = -1;
 	}
-	explicit public Mesh(const Mesh& mesh):
+	explicit public Mesh(const Mesh& mesh) :
 		V{ mesh.V }, F{ mesh.F }, dirty_flag_(mesh.dirty_flag_),
 		v_size_(mesh.v_size_), f_size_(mesh.f_size_), fn_size_(mesh.fn_size_), vn_size_(mesh.vn_size_),
 		f2f_(mesh.f2f_), e2f_(mesh.e2f_), v2f_(mesh.v2f_)
-	{}
+	{ }
 
 	Mesh& operator=(const Mesh& mesh){
-		V = mesh.V;
-		F = mesh.F; 
-		v_size_ = mesh.v_size_; 
-		f_size_ = mesh.f_size_; 
-		fn_size_ = mesh.fn_size_; 
+		V = mesh.V; F = mesh.F;
+		v_size_ = mesh.v_size_;
+		f_size_ = mesh.f_size_;
+		fn_size_ = mesh.fn_size_;
 		vn_size_ = mesh.vn_size_;
+		set_mesh(V, F);
 		f2f_ = mesh.f2f_;
 		e2f_ = mesh.e2f_;  
 		v2f_ = mesh.v2f_;
-		dirty_flag_ = mesh.dirty_flag_;
 		return *this;
 
 	}
 
 	inline void load_from_file(string name) {
 		igl::read_triangle_mesh(name, V, F);
-		v_size_ = V.rows();
-		f_size_ = F.rows();
-		BIT_ON(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
-		BIT_ON(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
-		init_geo_struct();
+		set_mesh(V, F);
+		
 	}
 	inline void set_mesh(ROWMAT(T)& V, RowmatI& F) {
 		this->V = V;
 		this->F = F;
-		v_size_ = this->V.rows();
-		f_size_ = this->F.rows();
+		bool expand_flag = false;
+		if(v_size_ == -1)
+			v_size_ = this->V.rows();
+		if(f_size_ == -1)
+			f_size_ = this->F.rows();
+		if(fn_size_ == -1){
+			fn_size_ = v_size_ + f_size_;
+			expand_flag = true;
+		}
+		if(vn_size_ == -1)
+			vn_size_ = fn_size_ + v_size_;
+		if(expand_flag){
+			V.conservativeResize(vn_size_, 3);
+			F.conservativeResize(F.rows(), 4);
+			V.block(v_size_, 0, f_size_ + v_size_, 3).setZero();
+		}
+		
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
+		BIT_ON(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
 		init_geo_struct();
 	}
 	inline void save_file(string name) {
@@ -112,7 +129,7 @@ public:
 	inline vert2Faces& get_v2f() { return v2f_; }
 
 
-	inline ROWMAT(T) get_all_components_verts() {
+	inline ROWMAT(T)& get_all_components_verts() {
 		return V;
 	}
 
@@ -142,14 +159,11 @@ public:
 	inline ROWMAT(T) calc_vertex_normal_vector() {
 		
 		calc_face_normal_vector();// face normal
-		//int size = v_size_ + f_size_ + v_size_;
-		//if(dirty_flag){
-		if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL)){
+		//if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL)){
+		if(true){
 			BIT_OFF(dirty_flag_, DIRTY_FLAG::D_VERTEX_NORMAL);
 			int size = fn_size_ + v_size_;
 			vn_size_ = size;
-			V.conservativeResize(vn_size_, 3);
-			V.block(fn_size_, 0, v_size_, 3).setZero();
 
 			const ROWMAT(T) VFN = V.block(v_size_, 0, f_size_, 3); //TODO
 
@@ -195,29 +209,37 @@ public:
 
 
 	inline ROWMAT(T) calc_face_normal_vector() {
-		//if (dirty_flag_) {
-		if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL)){
-		//if (true) {
+		//if(BIT_CHECK(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL)){
+		if (true) {
 			BIT_OFF(dirty_flag_, DIRTY_FLAG::D_FACE_NORMAL);
 			using vec3 = Eigen::Matrix<T, 1, 3, Eigen::RowMajor>;
-			fn_size_ = v_size_ + f_size_;
-			F.conservativeResize(f_size_, 4);
-			V.conservativeResize(fn_size_, 3);
+
 		
 			for (int i = 0; i < F.rows(); i++) {
 				F.row(i)[3] = v_size_ + i;
 				int v1 = F.row(i)[0], v2 = F.row(i)[1], v3 = F.row(i)[2];
+				//if(i == 8){
+				//std::cout << V.row(v1) << std::endl;
+				//std::cout << V.row(v2) << std::endl;
+				//std::cout << V.row(v3) << std::endl;
+				//}
 				vec3 e1 = V.row(v2) - V.row(v1);
 				vec3 e2 = V.row(v3) - V.row(v1);
 				e1.normalize();
 				e2.normalize();
 				vec3 e3 = e1.cross(e2);
 			//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+				//e3 = e3.cwiseSqrt().eval();
 				e3.normalize(); ///
+				
+				//T tmp = e3.squaredNorm();
+				//e3 /= sqrt(tmp);
+				V.row(v_size_ + i) = e3;
+				
 				// TODO
 				//e3 /= std::sqrt(e3.norm());
 			//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-				V.row(v_size_ + i) = e3;
+				//V.row(v_size_ + i) = e3;
 
 			}
 		}

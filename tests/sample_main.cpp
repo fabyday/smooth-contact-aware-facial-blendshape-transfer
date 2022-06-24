@@ -1,5 +1,5 @@
 #define LOG_CATEGORY "vn"
-#define DTYPE float
+#define DTYPE double
 
 
 #include <iostream>

@@ -48,34 +48,42 @@ struct TriangleDeformationGradient {
 
 	std::array<T, 3*(SIZE -1)> dg_; // v2 - v1, v3-v1, v4-v1
 	std::array<int, SIZE> ind_; // v1, v2, v3, v4 vertex index
+	
 	int tri_num_;
+	
 	Eigen::Map<ROWMAT(T)> get_mat() {		
 		return Eigen::Map<ROWMAT(T)>(dg_.data(), 3, 3);
 	}
+
 	Eigen::Map<VectorSi> get_ind() {
 		return Eigen::Map< VectorSi>(ind_.data());
 	}
 
-	//ROWMAT(T) operator*(Mesh<T>& mesh) {
-	//	ROWMAT(T)& verts = mesh.get_verts();
-	//	ROWMAT(T) v3x3;
-	//	const auto v1 = verts.row(ind_[0]);
-	//	for (int i = 1; ind_.size() i++) {
-	//		v4x3.row(i) = verts.row(ind_[i]) - v1;
-	//	}
-	//	return get_mat() * v4x3.transpose();
-	//}
+	ROWMAT(T) operator*(const ROWMAT(T)& mesh_v) {
+		Eigen::Map<ROWMAT(T)> dg = get_mat();
+			//std::cout << mesh_v({ ind_[0], ind_[1], ind_[2], ind_[3] }, Eigen::placeholders::all) << std::endl;
+		ROWMAT(T) l, r;
+		l.resize(3, 4);
+		r.resize(4, 3);
+		l.col(0) = (-dg.col(0) - dg.col(1) - dg.col(2));
+		l.col(1) = dg.col(0);
+		l.col(2) = dg.col(1);
+		l.col(3) = dg.col(2);
 
-	ROWMAT(T) operator*(const TriangleDeformationGradient<T,SIZE>& other) {
-		
-		//return get_mat()* other.get_mat().inverse();
-		return get_mat() * const_cast<TriangleDeformationGradient<T, SIZE>*>(&other)->get_mat().inverse();
+		r.row(0) = mesh_v.row(ind_[0]);
+		r.row(1) = mesh_v.row(ind_[1]);
+		r.row(2) = mesh_v.row(ind_[2]);
+		r.row(3) = mesh_v.row(ind_[3]);
+
+
+
+		return l*r;
 	}
 
 };  
 
 
-template<typename T, int SIZE =4>
+template<typename T, int SIZE = 4>
 struct DeformationGradientCollection { // iterator.....?
 	std::vector<TriangleDeformationGradient<T, SIZE>> data;
 
@@ -84,6 +92,58 @@ struct DeformationGradientCollection { // iterator.....?
 		data.resize(size);
 	}
 	TriangleDeformationGradient<T, SIZE>& operator[](int idx) {
+		return data[idx];
+	}
+	int size() {
+		return data.size();
+	}
+};
+
+
+template<typename T>
+struct TriTransform {
+	std::array<T, 9> dg_; //3x3 T
+	int tri_num_;
+
+	int get_tri_num() {
+		return tri_num_;
+	}
+
+	Eigen::Map<ROWMAT(T)> get_mat() {
+		return Eigen::Map<ROWMAT(T)>(dg_.data(), 3, 3);
+	}
+
+	void operator=(ROWMAT(T)& mat) {
+		Eigen::Map<ROWMAT(T)> dg_matrix(dg_.data(), 3, 3);
+		dg_matrix= mat;
+	}
+};
+
+template<typename T>
+struct TriTransformCollection {
+	std::vector<TriTransform<T>> data;
+	bool is_compiled_ = false;
+
+	template<int SIZE=4>
+	void compile(DeformationGradientCollection<T, SIZE>& dg, Mesh<T>& mesh) {
+		if (is_compiled_ == true)
+			return;
+		
+		assert(dg.size() == mesh.face_size() && "face size was difference.");
+
+		data.resize(dg.size());
+		ROWMAT(T)& mesh_v = mesh.get_all_components_verts();
+		for (int i = 0; i < dg.size(); i++) {
+			data[i] = dg[i] * mesh_v;
+			data[i].tri_num_ = i;
+		}
+		is_compiled_ = true;
+	}
+
+	void resize(int size) {
+		data.resize(size);
+	}
+	TriTransform<T>& operator[](int idx) {
 		return data[idx];
 	}
 	int size() {
@@ -121,20 +181,25 @@ public :
 
 	// inverse V matrix.(from reference)
 	inline TriangleDeformationGradient<T, SIZE>& get_inv_matrix(int face_idx) {
-		return deformation_gradients_[0][face_idx];
+		return deformation_gradients_[face_idx];
 	}
 
 	// ref1 -> target(same topology with ref1)
-	inline const TriangleDeformationGradient<T, SIZE>& get_deformation_gradient(int to_ref_target_idx, int face_idx) {
+	// T.transpose matrix for each face.
+	inline TriTransform<T>& get_src2tgt_transform(int to_ref_target_idx, int face_idx) {
 		if (to_ref_target_idx < 0)
 			throw std::runtime_error("index error. index must be singed.");
 
-		return deformation_gradients_[to_ref_target_idx + 1][face_idx];
+		//lazy evaluation.
+		targets_T[to_ref_target_idx].compile(deformation_gradients_, *(targets_[to_ref_target_idx]));
+		targets_[to_ref_target_idx]->save_file("s_mesh_" + std::to_string(to_ref_target_idx) + ".obj");
+
+		return targets_T[to_ref_target_idx][face_idx];
 	}
 
 
 	inline const int size() {
-		return deformation_gradients_.size() - 1; // remove reference
+		return targets_.size(); 
 	}
 
 	inline const int get_v_size() { return v_size_; };
@@ -154,7 +219,12 @@ private :
 	std::vector<TriangleDeformationGradient<T, SIZE>> ref_op;
 
 	//use MeshDGAccessor, help gradeint access per mesh.
-	std::vector<DeformationGradientCollection<T, SIZE>> deformation_gradients_; // [mesh1_grads mesh2_grads ... mesh_n grads]
+	//std::vector<DeformationGradientCollection<T, SIZE>> deformation_gradients_; // [mesh1_grads mesh2_grads ... mesh_n grads]
+	DeformationGradientCollection<T, SIZE> deformation_gradients_; // [mesh1_grads mesh2_grads ... mesh_n grads]
+	
+
+	std::vector<TriTransformCollection<T>> targets_T;
+
 };
 
 #include "deformation_gradient.cpp"
