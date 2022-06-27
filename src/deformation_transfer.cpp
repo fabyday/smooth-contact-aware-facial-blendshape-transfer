@@ -24,6 +24,26 @@ void load_file_as_vector(std::vector<int>& result, std::string filename) {
 }
 
 
+template<typename T>
+void load_row_mat(ROWMAT(T)& res) {
+
+	std::vector<T> raw;
+
+	std::ifstream openfile("D:/lab/2022/mycode/smooth-contact-aware-facial-blendshape-trasnfer/examples/b.txt");
+	if (openfile.is_open()) {
+		std::string line;
+		while (getline(openfile, line)) {
+			std::stringstream ss(line);
+			std::string t;
+			while(getline(ss, t, ' '))
+				raw.push_back(atof(t.c_str()));
+		}
+	}
+	int r_size = static_cast<int>(raw.size() / 3);
+	Eigen::Map<ROWMAT(T)> rmap(raw.data(), r_size, 3);
+	res = rmap;
+}
+
 
 
 template<typename T>
@@ -356,7 +376,7 @@ void DeformationTransfer<T>::process_correspondence()
 	src_copy_.update_v(recover_marker_points_to_result(first_estimated_x));
 	ROWMAT(T) raw_x = phase2(reduced_S_terms, reduced_I_terms); // yeah-a now phase 2. 
 	src_copy_.update_v(recover_marker_points_to_result(raw_x));	// attach removed marker from add_marker_constraint_to_matrix() term. :p
-	src_copy_.save_file("pahse2-nd.obj");
+	//src_copy_.save_file("phase2-nd.obj");
 	make_triangle_correspondence();  // finnally make corrs!! foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo!!!!!!!!!!
 }
 
@@ -454,9 +474,11 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 	get_closest_triangle<T>(src_result, src_fn, tgt_fn, src_fv, tgt_fv, max_angle, radius);
 	get_closest_triangle<T>(tgt_result, tgt_fn, src_fn, tgt_fv, src_fv, max_angle, radius);
 	
-	std::vector<int> tmp_vec1(src_result.size()), tmp_vec2(tgt_result.size());
-	load_file_as_vector(tmp_vec1, "D:/lab/2022/mycode/smooth-contact-aware-facial-blendshape-trasnfer/examples/test1.txt");
+	//std::vector<int> tmp_vec1(src_result.size()), tmp_vec2(tgt_result.size());
+	/*load_file_as_vector(tmp_vec1, "D:/lab/2022/mycode/smooth-contact-aware-facial-blendshape-trasnfer/examples/test1.txt");
 	load_file_as_vector(tmp_vec2, "D:/lab/2022/mycode/smooth-contact-aware-facial-blendshape-trasnfer/examples/test2.txt");
+	
+	
 	std::vector < std::tuple<int, int, int>> res1, res2;
 	for (int im = 0; im < tmp_vec1.size(); im++) {
 		if (src_result[im] != tmp_vec1[im])
@@ -474,10 +496,10 @@ void DeformationTransfer<T>::make_triangle_correspondence()
 	std::cout << "========" << std::endl;
 	for (auto& x : res2) {
 		std::cout << std::get<0>(x) << " : " << std::get<1>(x) << " , " << std::get<2>(x) << std::endl;
+	}*/
 
-	}
-
-
+	/*src_result = tmp_vec1;
+	tgt_result = tmp_vec2;*/
 
 
 
@@ -733,6 +755,9 @@ void DeformationTransfer<T>::solve() {
 	//const int G_rows = 3 *(corr_tri_size );
 	const int G_cols = tgt_v_size + tgt_f_size;// vertex + normal size
 	
+	
+	ROWMAT(T) test_b;
+	load_row_mat(test_b);
 	for (int ss = 0; ss < source_->size(); ss++) { // defored source size.
 
 		Sparse<T> G(G_rows, G_cols);
@@ -745,12 +770,15 @@ void DeformationTransfer<T>::solve() {
 			const int tgt_idx = corr_tri_tgt_from_src[i].second; // target and source inv T per triangle idx.
 			TriangleDeformationGradient<T, SIZE>& tdg_i = target_->get_inv_matrix(tgt_idx);
 
-
+			
 			Eigen::Map<ROWMAT(T)>& S_mat = source_->get_src2tgt_transform(ss, src_idx).get_mat();
 			b.block<3, 3>(3*tri_idx, 0) = S_mat;
+			//b.block<3, 3>(3*tri_idx, 0) = Eigen::Matrix<T,3,3>::Identity();
+			//std::cout << S_mat << std::endl;
 			add_sparse<T>(G, tdg_i, tri_idx, 1);
 			tri_idx++;
 		}
+		
 
 		// add constraints
 		// T_j*v_i + d_j = T_k*v_i + d_k

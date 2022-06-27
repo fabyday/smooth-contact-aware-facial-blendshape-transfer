@@ -76,7 +76,6 @@ struct TriangleDeformationGradient {
 		r.row(3) = mesh_v.row(ind_[3]);
 
 
-
 		return l*r;
 	}
 
@@ -124,21 +123,62 @@ struct TriTransformCollection {
 	std::vector<TriTransform<T>> data;
 	bool is_compiled_ = false;
 
-	template<int SIZE=4>
+	//template<int SIZE=4>
+	//void compile(DeformationGradientCollection<T, SIZE>& dg, Mesh<T>& mesh) {
+	//	if (is_compiled_ == true)
+	//		return;
+	//	
+	//	assert(dg.size() == mesh.face_size() && "face size was difference.");
+
+	//	data.resize(dg.size());
+	//	ROWMAT(T)& mesh_v = mesh.get_all_components_verts();
+	//	for (int i = 0; i < dg.size(); i++) {
+	//		data[i] = dg[i] * mesh_v;
+	//		data[i].tri_num_ = i;
+	//	}
+	//	is_compiled_ = true;
+	//}
+
+	template<int SIZE = 4>
 	void compile(DeformationGradientCollection<T, SIZE>& dg, Mesh<T>& mesh) {
 		if (is_compiled_ == true)
 			return;
-		
+
 		assert(dg.size() == mesh.face_size() && "face size was difference.");
 
+		using Vec3 = Eigen::Matrix<T, 3, 1>;
+		Mesh<T>::RowmatI& fs = mesh.get_face();
+		ROWMAT(T) vs = mesh.get_all_components_verts(); // it contains verts and face normal or verts normal
 		data.resize(dg.size());
-		ROWMAT(T)& mesh_v = mesh.get_all_components_verts();
+
 		for (int i = 0; i < dg.size(); i++) {
-			data[i] = dg[i] * mesh_v;
-			data[i].tri_num_ = i;
+
+			Eigen::Map<ROWMAT(T)> mat = dg[i].get_mat();
+
+			int v1_idx = fs(i, 0), v2_idx = fs(i, 1),
+				v3_idx = fs(i, 2), v4_idx = fs(i, 3);
+
+			Vec3 v1 = vs.row(v1_idx), v2 = vs.row(v2_idx),
+				v3 = vs.row(v3_idx), v4 = vs.row(v4_idx);
+
+			ROWMAT(T) block(3,3);
+			block.col(0) = v2 - v1;
+			block.col(1) = v3 - v1;
+			Eigen::Matrix<T, 3, 1> vec1, vec2, res_vec;
+			vec1 = block.col(0); vec2 = block.col(1);
+			res_vec = vec1.cross(vec2);
+			block.col(2) = res_vec.eval() / std::sqrt(res_vec.norm()); // v4 is locally normal vector.(Mesh<T> didn't add v1 to v4.)
+
+			block.transposeInPlace();
+			ROWMAT(T) s = mat * block;
+			data[i] = s;
+			data[i].tri_num_ = i; // assign face idx
+
 		}
-		is_compiled_ = true;
+	is_compiled_ = true;
 	}
+
+
 
 	void resize(int size) {
 		data.resize(size);

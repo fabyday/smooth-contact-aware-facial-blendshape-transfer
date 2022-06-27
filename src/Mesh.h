@@ -231,7 +231,6 @@ public:
 			//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 				//e3 = e3.cwiseSqrt().eval();
 				e3.normalize(); ///
-				
 				//T tmp = e3.squaredNorm();
 				//e3 /= sqrt(tmp);
 				V.row(v_size_ + i) = e3;

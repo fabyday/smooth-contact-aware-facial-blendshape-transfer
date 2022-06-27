@@ -25,11 +25,12 @@ yaml-cpp
 
 
 # TODO 
-- [x]task1 : deformation transfer
-- [O] find correspondence 
-- [-] find 
-- task2 : add triangle constraints
-- task3 : add laplacian constraints
+- [O]task1 : deformation transfer
+    - [O] find correspondence 
+    - [O] find corresponded triangle.
+    - [deformation transfer demo video](https://www.youtube.com/watch?v=rih0KVmWKOM)
+- [X] task2 : add triangle constraints <-{Now implement}
+- [X] task3 : add laplacian constraints
 
 
 # LOGGING
